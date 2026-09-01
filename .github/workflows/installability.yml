@@ -57,8 +57,10 @@ jobs:
         include:
           - arch: amd64
             platform: linux/amd64
+            host_port: 18080
           - arch: arm64
             platform: linux/arm64
+            host_port: 18081
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -86,22 +88,25 @@ jobs:
             --platform "${{ matrix.platform }}" \
             -e DATA_DIR=/data \
             -e PORT=8080 \
+            -p "127.0.0.1:${{ matrix.host_port }}:8080" \
             -v "$DATA_DIR_HOST:/data" \
             "3d-print-cost-smoke:${{ matrix.arch }}"
-      - name: Wait for migrations and health check
+      - name: Wait for migrations and HTTP health endpoint
         shell: bash
         run: |
           container="3d-print-cost-smoke-${{ matrix.arch }}"
-          # Native arm64 hardware starts much faster than QEMU emulation. On
-          # loaded hosted runners, emulated Python startup has taken ~185s.
-          # Give CI five minutes so runner variance is not treated as an app
-          # failure; the real Raspberry Pi does not incur QEMU overhead.
+          url="http://127.0.0.1:${{ matrix.host_port }}/healthz"
+          # Check from the native GitHub runner instead of trusting Docker's
+          # in-container Python HEALTHCHECK. Under QEMU, spawning an emulated
+          # Python process can exceed the production healthcheck timeout even
+          # when Uvicorn is already healthy. Host-side curl verifies the real
+          # HTTP boundary that Umbrel's app proxy depends on.
           for attempt in $(seq 1 300); do
             running="$(docker inspect --format '{{.State.Running}}' "$container")"
-            health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
-            echo "attempt=$attempt running=$running health=$health"
-            if [ "$health" = "healthy" ]; then
-              docker exec "$container" python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read().decode())"
+            echo "attempt=$attempt running=$running"
+            if curl --fail --silent --show-error --max-time 2 "$url"; then
+              echo
+              docker inspect --format 'docker_health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container"
               exit 0
             fi
             if [ "$running" != "true" ]; then
