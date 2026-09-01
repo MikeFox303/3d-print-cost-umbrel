@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Проверка системы — 3D Print Cost{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Проверка системы</h1>
+    <p>Безопасная диагностика контейнера, хранилища и локальной базы перед реальной работой.</p>
+  </div>
+  <a class="button" href="/api/system-check" target="_blank" rel="noopener">JSON</a>
+</div>
+
+<div class="grid stats">
+  <div class="card metric"><span>Состояние</span><strong>{{ 'OK' if report.status == 'ok' else 'Проверить' }}</strong></div>
+  <div class="card metric"><span>Версия</span><strong>{{ report.version }}</strong></div>
+  <div class="card metric"><span>Архитектура</span><strong>{{ report.runtime.machine }}</strong></div>
+  <div class="card metric"><span>Схема БД</span><strong>v{{ report.migrations.head_version or '?' }}</strong></div>
+</div>
+
+<div class="two-col">
+  <div class="card breakdown">
+    <h2>Критические проверки</h2>
+    <div><span>Persistent /data</span><strong>{{ '✓' if report.checks.persistent_storage == 'ok' else '⚠' }}</strong></div>
+    <div><span>Запись в хранилище</span><strong>{{ 'Да' if report.storage.writable else 'Нет' }}</strong></div>
+    <div><span>SQLite доступна</span><strong>{{ 'Да' if report.database.reachable else 'Нет' }}</strong></div>
+    <div><span>Миграции актуальны</span><strong>{{ 'Да' if report.migrations.up_to_date else 'Нет' }}</strong></div>
+    <div><span>Файл БД</span><strong>{{ report.database.name or report.database.dialect }}</strong></div>
+    {% if report.database.size_bytes is not none %}
+    <div><span>Размер БД</span><strong>{{ '%.1f'|format(report.database.size_bytes / 1024) }} KiB</strong></div>
+    {% endif %}
+    <p class="hint">Путь persistent data: <code>{{ report.storage.path }}</code></p>
+  </div>
+
+  <div class="card breakdown">
+    <h2>Runtime</h2>
+    <div><span>Python</span><strong>{{ report.runtime.python }}</strong></div>
+    <div><span>Platform</span><strong>{{ report.runtime.platform }}</strong></div>
+    <div><span>Machine</span><strong>{{ report.runtime.machine }}</strong></div>
+    <div><span>Applied migrations</span><strong>{{ report.migrations.applied_versions|join(', ') if report.migrations.applied_versions else '—' }}</strong></div>
+    <div><span>Секреты в отчёте</span><strong>{{ 'Нет' if not report.secrets_exposed else 'Да' }}</strong></div>
+    <div><span>Сетевые запросы проверки</span><strong>{{ 'Нет' if not report.network_requests_performed else 'Да' }}</strong></div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card breakdown">
+    <h2>Spoolman</h2>
+    <div><span>Включён</span><strong>{{ 'Да' if report.integrations.spoolman.enabled else 'Нет' }}</strong></div>
+    <div><span>Настроен</span><strong>{{ 'Да' if report.integrations.spoolman.configured else 'Нет' }}</strong></div>
+    <div><span>Режим</span><strong>Read only</strong></div>
+    <p class="hint">Эта проверка не обращается к Spoolman и ничего там не изменяет.</p>
+  </div>
+
+  <div class="card breakdown">
+    <h2>Home Assistant</h2>
+    <div><span>Включён</span><strong>{{ 'Да' if report.integrations.home_assistant.enabled else 'Нет' }}</strong></div>
+    <div><span>Настроен</span><strong>{{ 'Да' if report.integrations.home_assistant.configured else 'Нет' }}</strong></div>
+    <div><span>Токен сохранён</span><strong>{{ 'Да' if report.integrations.home_assistant.token_configured else 'Нет' }}</strong></div>
+    <div><span>Источник токена</span><strong>{{ report.integrations.home_assistant.token_source or '—' }}</strong></div>
+    <div><span>Режим</span><strong>GET only</strong></div>
+    <p class="hint">Значение токена никогда не включается в эту страницу или JSON-отчёт.</p>
+  </div>
+</div>
+
+{% if report.status != 'ok' %}
+<div class="card">
+  <h2>Что требует внимания</h2>
+  <p>Красный критический пункт означает проблему с persistent storage, SQLite или миграциями. Предупреждение интеграции означает, что она включена, но настроена не полностью.</p>
+</div>
+{% endif %}
+{% endblock %}
