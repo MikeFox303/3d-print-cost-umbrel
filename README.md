@@ -86,7 +86,7 @@ The `0.9.0-dev.1` runtime image was published for both amd64 and arm64 and the C
 ghcr.io/mikefox303/3d-print-cost-umbrel:0.9.0-dev.1@sha256:32ad05edf930103b69c458af43528bd3f44c4ed3f01c9a97aaacad2f4ad9bd62
 ```
 
-The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. See [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the remaining device verification checklist. The new System Check page is intended to be the first check immediately after opening the app on the real device.
+The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. Use [`docs/INSTALL_UMBREL.md`](docs/INSTALL_UMBREL.md) for the first real installation/runbook and [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the verification boundary. The new System Check page is intended to be the first check immediately after opening the app on the real device.
 
 ## Pricing principles
 
