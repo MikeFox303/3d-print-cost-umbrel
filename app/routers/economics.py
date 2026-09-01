@@ -26,9 +26,19 @@ def _breakdown_from_snapshot(order, snapshot: dict, settings: dict) -> PriceBrea
         except (TypeError, ValueError):
             return float(fallback)
 
+    fallback_kwh = (
+        float(order.electricity_kwh)
+        if order.electricity_kwh is not None
+        else (float(order.print_minutes or 0) / 60.0) * float(settings.get("average_power_w", 0)) / 1000.0
+    )
+    fallback_source = "explicit_kwh" if order.electricity_kwh is not None else "compat_current_average_power"
+
     return PriceBreakdown(
         material=number("material"),
         electricity=number("electricity"),
+        electricity_kwh_used=number("electricity_kwh_used", fallback_kwh),
+        electricity_tariff=number("electricity_tariff", settings.get("electricity_tariff", 0.0)),
+        electricity_source=str(snapshot.get("electricity_source") or fallback_source),
         maintenance=number("maintenance"),
         labor=number("labor"),
         packaging=number("packaging"),
