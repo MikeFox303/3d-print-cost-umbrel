@@ -3,11 +3,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "mikefox-3d-print-cost"
-# This is the currently published Community App package. Source development may
-# intentionally move one version ahead while CI publishes the next multi-arch
-# runtime and before its immutable digest is known/pinned in a package PR.
-EXPECTED_VERSION = "0.12.0-dev.1"
-EXPECTED_IMAGE_DIGEST = "sha256:2066ba5d26be9821a2778637b4a26636ec759edd21c53d69217616014883b550"
+# Immutable Community App package currently proposed for physical validation.
+# The digest comes from the successful multi-architecture main build of the
+# matching runtime version and is intentionally pinned here as a release gate.
+EXPECTED_VERSION = "0.13.0-dev.1"
+EXPECTED_IMAGE_DIGEST = "sha256:8a085a84505362b00802a5f611eee6f0ee69a4b5aa7f040803a1b398aa071bc3"
 
 
 def read(path: Path) -> str:
