@@ -1,4 +1,5 @@
 import json
+import struct
 from pathlib import Path
 
 from app import __version__
@@ -24,6 +25,8 @@ def test_v014_source_version_and_manifest_contract():
         "/static/icons/icon-192.png",
         "/static/icons/icon-512.png",
     }
+    shortcuts = {item["url"] for item in manifest["shortcuts"]}
+    assert shortcuts == {"/orders/new", "/filaments"}
 
 
 def test_every_page_base_links_ios_and_web_app_metadata():
@@ -36,17 +39,19 @@ def test_every_page_base_links_ios_and_web_app_metadata():
     assert 'href="/static/v14.css"' in base
 
 
-def test_pwa_icons_exist_as_real_png_files():
+def test_pwa_icons_exist_as_real_png_files_with_expected_dimensions():
     expected = {
         "apple-touch-icon.png": (180, 180),
         "icon-192.png": (192, 192),
         "icon-512.png": (512, 512),
     }
     png_signature = b"\x89PNG\r\n\x1a\n"
-    for filename in expected:
+    for filename, dimensions in expected.items():
         payload = (STATIC / "icons" / filename).read_bytes()
         assert payload.startswith(png_signature)
         assert len(payload) > 1000
+        width, height = struct.unpack(">II", payload[16:24])
+        assert (width, height) == dimensions
 
 
 def test_standalone_shell_respects_ios_safe_area():
