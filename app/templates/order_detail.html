@@ -16,4 +16,26 @@
 <section class="card"><h2>Статус</h2><form method="post" action="/orders/{{order.id}}/status" class="row"><select name="status">{% for k,v in status_labels.items() %}<option value="{{k}}" {% if k==order.status %}selected{% endif %}>{{v}}</option>{% endfor %}</select><button class="button primary">Сохранить</button></form><p class="hint">При статусе «Выполнен» фиксируется фактически реализованный вклад в окупаемость на основе цены клиента.</p></section>
 <section class="card"><h2>Окупаемость</h2><div class="metric-inline"><span>План</span><strong>{{'%.2f'|format(order.planned_payback)}} грн</strong></div><div class="metric-inline"><span>Фактически зачтено</span><strong>{{'%.2f'|format(order.realized_payback)}} грн</strong></div></section>
 </div>
+{% if order.status == 'completed' %}
+<section class="card" style="margin-top:16px">
+  <div class="row between"><div><h2>Фактическая энергия · Home Assistant</h2><p>Читается по истории сенсора; заказ и его финансовый snapshot не изменяются.</p></div><span class="badge readonly">GET ONLY</span></div>
+  <button class="button" type="button" id="loadHaEnergy">Получить фактическую энергию</button>
+  <div id="haEnergyResult" class="hint">Окно: время завершения минус длительность печати.</div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if order.status == 'completed' %}
+<script>
+(() => {
+ const button=document.getElementById('loadHaEnergy'); const box=document.getElementById('haEnergyResult'); if(!button||!box)return;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+ button.addEventListener('click',async()=>{ button.disabled=true; box.textContent='Читаю историю Home Assistant…';
+  try{ const response=await fetch('/api/orders/{{order.id}}/home-assistant-energy'); const data=await response.json(); if(!response.ok)throw new Error(data.detail||data.error||'Ошибка Home Assistant');
+   const diff=Number(data.difference_kwh||0); box.innerHTML=`<div class="breakdown" style="margin-top:12px"><div><span>Фактически</span><b>${Number(data.kwh).toFixed(3)} кВт·ч</b></div><div><span>Расчётно</span><b>${Number(data.estimated_kwh).toFixed(3)} кВт·ч</b></div><div><span>Разница</span><b>${diff>=0?'+':''}${diff.toFixed(3)} кВт·ч</b></div><div><span>Фактическая стоимость</span><b>${Number(data.actual_cost).toFixed(2)} грн</b></div><div><span>Сенсор</span><b>${esc(data.entity_id)} · ${esc(data.sensor_unit)}</b></div><div><span>Метод</span><b>${esc(data.mode)}</b></div></div><p class="hint">Результат не сохраняется в заказе.</p>`;
+  }catch(error){box.innerHTML=`<div class="warning">${esc(error.message)} · <a href="/home-assistant">Настроить Home Assistant</a></div>`;}finally{button.disabled=false;}
+ });
+})();
+</script>
+{% endif %}
 {% endblock %}
