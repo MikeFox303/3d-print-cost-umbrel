@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from fastapi.staticfiles import StaticFiles
-
 from . import main as core
 from .routers.backup import router as backup_router
 from .routers.home_assistant import router as home_assistant_router
@@ -11,7 +7,6 @@ from .routers.imports import router as imports_router
 from .routers.system import router as system_router
 
 app = core.app
-BASE_DIR = Path(__file__).resolve().parent
 
 
 def _validate_quote_inputs(data: dict) -> None:
@@ -41,12 +36,6 @@ if not hasattr(core, "_validate_quote_inputs"):
     core._calculate_form = _validated_calculate_form
 else:
     _validate_quote_inputs = core._validate_quote_inputs
-
-
-# The 3MF asset still uses its historical URL for this compatibility commit.
-# The following step moves it under the normal /static mount.
-if not any(getattr(route, "path", None) == "/v04-static" for route in app.routes):
-    app.mount("/v04-static", StaticFiles(directory=BASE_DIR / "v04_static"), name="v04-static")
 
 
 for router in (imports_router, backup_router, system_router, home_assistant_router):
