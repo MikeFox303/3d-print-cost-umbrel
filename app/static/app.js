@@ -47,18 +47,14 @@ function setupQuotePreview() {
   const panel = document.getElementById('quotePreview');
   if (!form || !button || !panel) return;
 
-  form.addEventListener('input', e => {
-    if (e.target.id !== 'finalPrice') invalidatePreview();
-  });
-  form.addEventListener('change', e => {
-    if (e.target.id !== 'finalPrice') invalidatePreview();
-  });
+  form.addEventListener('input', invalidatePreview);
+  form.addEventListener('change', invalidatePreview);
 
-  button.addEventListener('click', async () => {
+  const calculate = async () => {
     button.disabled = true;
     button.textContent = 'Считаю…';
     try {
-      const response = await fetch('/api/quotes/preview', { method: 'POST', body: new FormData(form) });
+      const response = await fetch('/api/quotes/economics-preview', { method: 'POST', body: new FormData(form) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || data.error || 'Ошибка расчёта');
       document.getElementById('previewMinimum').textContent = money(data.minimum_price);
@@ -67,8 +63,35 @@ function setupQuotePreview() {
       document.getElementById('previewBreakdown').innerHTML = [
         ['Материалы', b.material], ['Электричество', b.electricity], ['Обслуживание', b.maintenance],
         ['Ручной труд', b.labor], ['Упаковка', b.packaging], ['Себестоимость с риском', b.production_cost],
-        ['Окупаемость', b.planned_payback], ['Ставка окупаемости', b.payback_rate, ' грн/ч']
+        ['Окупаемость по плану', b.planned_payback], ['Ставка окупаемости', b.payback_rate, ' грн/ч']
       ].map(([label, value, suffix]) => `<div><span>${label}</span><b>${Number(value || 0).toFixed(2)}${suffix || ' грн'}</b></div>`).join('');
+
+      const e = data.customer_economics || {};
+      const state = document.getElementById('previewCustomerState');
+      if (state) {
+        state.className = 'customer-price-state ' + (e.meets_recommended_price ? 'good' : (e.meets_minimum_price ? 'warn' : 'bad'));
+        if (e.meets_recommended_price) {
+          state.textContent = `Цена ${money(e.customer_price)} покрывает рекомендуемый уровень.`;
+        } else if (e.meets_minimum_price) {
+          state.textContent = `Цена ${money(e.customer_price)} выше минимальной, но ниже рекомендуемой.`;
+        } else {
+          state.textContent = `Цена ${money(e.customer_price)} ниже минимальной устойчивой цены.`;
+        }
+      }
+      const econBox = document.getElementById('previewCustomerEconomics');
+      if (econBox) {
+        econBox.innerHTML = [
+          ['Цена клиенту', e.customer_price],
+          ['Налог', e.tax],
+          ['Комиссия площадки', e.platform_fee],
+          ['После налога и комиссии', e.net_revenue],
+          ['Результат после базовых затрат', e.operating_result],
+          ['Вклад в окупаемость', e.payback_contribution],
+          ['Прибыль после окупаемости', e.profit_after_payback],
+          ['Маржа после окупаемости', Number(e.profit_margin_after_payback || 0) * 100, '%']
+        ].map(([label, value, suffix]) => `<div><span>${label}</span><b>${Number(value || 0).toFixed(2)}${suffix || ' грн'}</b></div>`).join('');
+      }
+
       const warnings = data.warnings || [];
       document.getElementById('previewWarnings').innerHTML = warnings.map(x => `<div class="warning">⚠ ${escapeHtml(x)}</div>`).join('');
       panel.dataset.recommended = String(data.recommended_rounded || data.recommended_price || '');
@@ -83,11 +106,16 @@ function setupQuotePreview() {
       button.disabled = false;
       button.textContent = 'Пересчитать цену';
     }
-  });
+  };
 
-  document.getElementById('useRecommended')?.addEventListener('click', () => {
+  button.addEventListener('click', calculate);
+
+  document.getElementById('useRecommended')?.addEventListener('click', async () => {
     const price = Number(panel.dataset.recommended || 0);
-    if (price) document.getElementById('finalPrice').value = Math.ceil(price);
+    if (!price) return;
+    document.getElementById('finalPrice').value = Math.ceil(price);
+    invalidatePreview();
+    await calculate();
   });
 }
 
