@@ -1,0 +1,36 @@
+{
+  "id": "/",
+  "name": "3D Print Cost",
+  "short_name": "Print Cost",
+  "description": "Local 3D-print quote calculator and order ledger for umbrelOS.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Новый заказ",
+      "short_name": "Заказ",
+      "url": "/orders/new"
+    },
+    {
+      "name": "Материалы",
+      "short_name": "Материалы",
+      "url": "/filaments"
+    }
+  ]
+}
