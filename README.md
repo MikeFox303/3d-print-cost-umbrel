@@ -4,13 +4,14 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.13.0-dev.1`
+`0.14.0-dev.1`
 
-The Community App package is also `0.13.0-dev.1`, pinned to an immutable multi-architecture GHCR digest for physical umbrelOS validation.
+The currently released Community App package remains `0.13.0-dev.1`, pinned to an immutable multi-architecture GHCR digest while v0.14 source changes are tested separately.
 
 ### Implemented
 
 - responsive web UI for desktop and phone, including dedicated real-device scaling for wide, ultrawide, 4K displays and a phone-first real-device pass;
+- safe iPhone/Home Screen standalone shell in v0.14 with a web app manifest, touch icons and standalone safe-area styling;
 - SQLite persistence plus explicit versioned migrations and pre-migration safety backups;
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
@@ -23,7 +24,7 @@ The Community App package is also `0.13.0-dev.1`, pinned to an immutable multi-a
 - client-safe copyable quote text that never exposes internal cost, margin, tax or payback details;
 - order statuses, edit/duplicate, archive, trash/restore and permanent delete;
 - business statistics with a 90-day load/payback forecast;
-- snapshot-only **price-discipline analytics** for completed v0.13 orders, with legacy orders kept separate;
+- snapshot-only **price-discipline analytics** for completed v0.13+ orders, with legacy orders kept separate;
 - CSV export, full JSON business-data backup and validated transactional restore;
 - Spoolman **read-only** spool price/remaining-weight snapshots;
 - Home Assistant **GET-only** post-print electricity reconciliation using the tariff/kWh basis saved with the quote;
@@ -53,13 +54,19 @@ The Community App package is also `0.13.0-dev.1`, pinned to an immutable multi-a
 
 The `.3mf` matcher deliberately does not guess across different material families. It only ignores punctuation, spacing and case (`PETG-HF` can match `PETG HF`), while labels such as `PLA-S` remain distinct from generic `PLA`. If several same-material local spools exist and color does not uniquely disambiguate them, the user must choose the real spool.
 
+## iPhone / standalone web app
+
+v0.14 adds a web app manifest and iOS standalone metadata so the local interface can be added to the iPhone Home Screen and opened without normal Safari chrome.
+
+This is intentionally **not an offline business application**. There is no service worker and no offline fallback for orders, quotes, settings, Spoolman or Home Assistant data. Umbrel/SQLite remains the single authoritative source, preventing a stale cached quote or order form from looking editable while disconnected.
+
 ## Home Assistant
 
 Normal umbrelOS setup no longer requires an environment variable or SSH. Open **Home Assistant** inside 3D Print Cost and enter the base URL, sensor entity id and Long-Lived Access Token there.
 
 The token is stored as a separate persistent secret file with restrictive permissions. It is not stored in SQLite, is never displayed back in the UI and is excluded from the app's JSON business-data backup. For ordinary Docker deployments, `HOME_ASSISTANT_TOKEN` remains an optional advanced override.
 
-The integration performs only GET requests. It supports cumulative energy sensors (`kWh`/`Wh`) and power-history sensors (`W`/`kW`). New v0.13 quote snapshots preserve the quoted kWh basis and electricity tariff so later global tariff changes do not rewrite historical comparisons. The reconciliation result is informational post-print statistics only.
+The integration performs only GET requests. It supports cumulative energy sensors (`kWh`/`Wh`) and power-history sensors (`W`/`kW`). New v0.13+ quote snapshots preserve the quoted kWh basis and electricity tariff so later global tariff changes do not rewrite historical comparisons. The reconciliation result is informational post-print statistics only.
 
 ## System Check
 
@@ -77,7 +84,9 @@ The check itself does not contact Spoolman or Home Assistant. A machine-readable
 
 `0.9.0-dev.1` completed the first physical Raspberry Pi/umbrelOS validation: Community App installation, `aarch64` System Check, writable persistent `/data`, SQLite/migrations, app-restart persistence and full host-reboot persistence all passed. `0.10.0-dev.1` refreshed the desktop interface. `0.11.0-dev.1` added the ultrawide/4K real-device pass. `0.12.0-dev.1` is the phone-first pass based directly on iPhone screenshots from the physical installation: mobile header/content spacing, safe bottom navigation, compact Settings disclosures and an on-demand add-filament form.
 
-`0.13.0-dev.1` is now packaged as the next physical-validation build. It adds conservative `.3mf` → local price matching, economics at the actual customer price, client-safe quote copying, immutable post-print electricity reconciliation and snapshot-only price-discipline analytics. The package uses the same persistent `/data` volume and does not require a schema migration from v0.12.
+`0.13.0-dev.1` is the current packaged physical-validation build. It adds conservative `.3mf` → local price matching, economics at the actual customer price, client-safe quote copying, immutable post-print electricity reconciliation and snapshot-only price-discipline analytics. The Community App is pinned to `sha256:8a085a84505362b00802a5f611eee6f0ee69a4b5aa7f040803a1b398aa071bc3` and keeps the same persistent `/data` volume.
+
+`0.14.0-dev.1` is source development after that package. Its first change is a safe installable iPhone/Home Screen shell; the Community App package is intentionally not bumped until the new source is tested and a new immutable runtime digest exists.
 
 ## Local Docker run
 
@@ -97,7 +106,7 @@ The repository contains a Community App Store package:
 - `mikefox-3d-print-cost/umbrel-app.yml`
 - `mikefox-3d-print-cost/docker-compose.yml`
 
-The package uses a versioned, immutable-digest-pinned GHCR image. Release CI requires the exact pinned image to be anonymously readable because umbrelOS Community App installation does not use GitHub registry credentials.
+The released package uses a versioned, immutable-digest-pinned GHCR image. Release CI requires the exact pinned image to be anonymously readable because umbrelOS Community App installation does not use GitHub registry credentials. Source development is allowed to move ahead of the last validated package; package manifest/image version alignment and digest pinning remain separate permanent release gates.
 
 ## Data ownership
 
