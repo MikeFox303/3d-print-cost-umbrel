@@ -42,6 +42,9 @@ DEFAULTS: dict[str, object] = {
     "platform_olx_business_cap": 499.0,
     "spoolman_enabled": False,
     "spoolman_url": "http://spoolman.local:7912",
+    "home_assistant_enabled": False,
+    "home_assistant_url": "http://homeassistant.local:8123",
+    "home_assistant_energy_entity": "",
 }
 
 def _encode(v: object) -> str:
