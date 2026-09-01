@@ -1,9 +1,11 @@
-name: Build container
+name: Test and build container
 
 on:
   push:
     branches: [main]
     tags: ['v*']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +13,20 @@ permissions:
   packages: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt pytest
+      - run: pytest -q
+
   build:
+    needs: test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +42,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/3d-print-cost-umbrel
           tags: |
-            type=raw,value=0.1.0-dev.1,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=0.2.0-dev.1,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag
             type=sha
       - uses: docker/build-push-action@v6
