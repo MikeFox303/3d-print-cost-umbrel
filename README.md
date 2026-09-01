@@ -4,11 +4,11 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.9.0-dev.1`
+`0.10.0-dev.1`
 
 ### Implemented
 
-- responsive web UI for desktop and phone;
+- responsive web UI for desktop and phone, including a real-device UI refresh for wide/1440p/4K displays;
 - SQLite persistence plus explicit versioned migrations and pre-migration safety backups;
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
@@ -25,6 +25,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - browser-safe **System Check** for runtime architecture, persistent storage, SQLite, migrations and integration configuration without exposing secrets or making integration network calls;
 - CI regression tests and multi-architecture (`amd64`, `arm64`) container builds;
 - Community App package checks for umbrelOS;
+- anonymous GHCR installability gate plus real amd64/arm64 runtime smoke tests;
 - immutable digest pinning for the Umbrel runtime image.
 
 ### External-system boundary
@@ -57,10 +58,14 @@ Open **Проверка системы** in the sidebar or `/system`. The page r
 - application version and container architecture;
 - whether persistent `DATA_DIR` exists and is writable;
 - SQLite reachability, file presence/size and migration status;
-- whether Spoolman/Home Assistant are enabled and completely configured;
+- whether Spoolman/Home Assistant are enabled and configured, without exposing integration URLs or secrets;
 - Home Assistant token presence/source without ever returning the token value.
 
 The check itself does not contact Spoolman or Home Assistant. A machine-readable copy is available at `/api/system-check`.
+
+## Real umbrelOS validation
+
+`0.9.0-dev.1` completed the first physical Raspberry Pi/umbrelOS validation: Community App installation, `aarch64` System Check, writable persistent `/data`, SQLite/migrations, app-restart persistence and full host-reboot persistence all passed. `0.10.0-dev.1` builds on that verified storage/runtime foundation and focuses on interface usability.
 
 ## Local Docker run
 
@@ -80,35 +85,8 @@ The repository contains a Community App Store package:
 - `mikefox-3d-print-cost/umbrel-app.yml`
 - `mikefox-3d-print-cost/docker-compose.yml`
 
-The `0.9.0-dev.1` runtime image was published for both amd64 and arm64 and the Community App package is pinned to its immutable multi-architecture digest:
+The package uses a versioned, immutable-digest-pinned GHCR image. Release CI requires the exact pinned image to be anonymously readable because umbrelOS Community App installation does not use GitHub registry credentials.
 
-```text
-ghcr.io/mikefox303/3d-print-cost-umbrel:0.9.0-dev.1@sha256:32ad05edf930103b69c458af43528bd3f44c4ed3f01c9a97aaacad2f4ad9bd62
-```
+## Data ownership
 
-The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. Use [`docs/INSTALL_UMBREL.md`](docs/INSTALL_UMBREL.md) for the first real installation/runbook and [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the verification boundary. The new System Check page is intended to be the first check immediately after opening the app on the real device.
-
-## Pricing principles
-
-The quote includes actual material cost, electricity estimate, maintenance, minimal manual work, packaging, expected reprint risk, taxes/platform fees, selected margin and a bounded adaptive equipment-payback contribution.
-
-- material reserve is applied once (default 2%);
-- expected reprint cost uses `1 / (1 - p)`;
-- taxes, percentage platform fees and margin are solved from the **selling price**, not added as simple markups;
-- OLX fixed/percentage fees and configured cap are handled explicitly;
-- low monthly load cannot increase the payback hourly contribution above the configured cap;
-- the adaptive payback rate is snapshotted for the month so customers in the same period are treated consistently.
-
-## Backup / restore
-
-Restore is deliberately replace-all, not merge. It requires a dry-run, exact-file fingerprint and the phrase `RESTORE`; immediately before replacement the app saves a safety copy of the current local business data. External services are never contacted by restore.
-
-## Development
-
-```bash
-pip install -r requirements.txt pytest
-python -m app.migrations
-pytest -q
-```
-
-All durable app state belongs under `DATA_DIR`. External services are never treated as writable databases.
+All app-owned state is stored under `DATA_DIR`. Updating the container does not replace the persistent database volume. Historical order snapshots remain stable when global settings, filament prices or later application versions change.
