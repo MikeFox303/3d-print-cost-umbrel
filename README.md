@@ -4,11 +4,11 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.11.0-dev.1`
+`0.12.0-dev.1`
 
 ### Implemented
 
-- responsive web UI for desktop and phone, including dedicated real-device scaling for wide, ultrawide and 4K displays;
+- responsive web UI for desktop and phone, including dedicated real-device scaling for wide, ultrawide, 4K displays and a phone-first real-device pass;
 - SQLite persistence plus explicit versioned migrations and pre-migration safety backups;
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
@@ -65,7 +65,7 @@ The check itself does not contact Spoolman or Home Assistant. A machine-readable
 
 ## Real umbrelOS validation
 
-`0.9.0-dev.1` completed the first physical Raspberry Pi/umbrelOS validation: Community App installation, `aarch64` System Check, writable persistent `/data`, SQLite/migrations, app-restart persistence and full host-reboot persistence all passed. `0.10.0-dev.1` was the first real-device interface refresh. `0.11.0-dev.1` is the second pass based directly on ultrawide screenshots, adding dedicated 2400px/3000px scaling and making significantly more of the display usable at normal browser zoom.
+`0.9.0-dev.1` completed the first physical Raspberry Pi/umbrelOS validation: Community App installation, `aarch64` System Check, writable persistent `/data`, SQLite/migrations, app-restart persistence and full host-reboot persistence all passed. `0.10.0-dev.1` refreshed the desktop interface. `0.11.0-dev.1` added the ultrawide/4K real-device pass. `0.12.0-dev.1` is the phone-first pass based directly on iPhone screenshots from the physical installation: mobile header/content spacing, safe bottom navigation, compact Settings disclosures and an on-demand add-filament form.
 
 ## Local Docker run
 
