@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Статистика — 3D Print Cost{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Статистика</h1><p>Фактические выполненные заказы и темп окупаемости.</p></div><div class="row"><a class="button" href="/exports/orders.csv">CSV заказов</a><a class="button" href="/exports/backup.json">Backup JSON</a></div></div>
+<div class="page-head"><div><h1>Статистика</h1><p>Фактические выполненные заказы, ценовая дисциплина и темп окупаемости.</p></div><div class="row"><a class="button" href="/exports/orders.csv">CSV заказов</a><a class="button" href="/exports/backup.json">Backup JSON</a></div></div>
 <div class="grid stats">
   <div class="card metric"><span>Заказов в этом месяце</span><strong>{{ stats.completed_month }}</strong></div>
   <div class="card metric"><span>Выручка месяца</span><strong>{{ '%.0f'|format(stats.revenue_month) }} грн</strong></div>
@@ -32,8 +32,37 @@
   </div>
 </section>
 </div>
+
+<section class="card" style="margin:16px 0">
+  <div class="row between"><div><h2>Ценовая дисциплина</h2><p>Только выполненные заказы с точным snapshot экономики фактической цены клиента.</p></div><span class="badge readonly">SNAPSHOT ONLY</span></div>
+  {% if stats.calibration_state == 'no_data' %}
+    <div class="forecast neutral">Точных v0.13 заказов пока нет. Старые заказы не смешиваются с новой выборкой.</div>
+  {% elif stats.calibration_state == 'small_sample' %}
+    <div class="forecast neutral">Есть {{ stats.calibration_exact_orders }} точных заказов. Выводы пока предварительные; для устойчивого ориентира нужно хотя бы {{ stats.calibration_min_sample }}.</div>
+  {% else %}
+    <div class="forecast good">Выборка уже пригодна для практической калибровки: {{ stats.calibration_exact_orders }} точных заказов.</div>
+  {% endif %}
+  <div class="two-col" style="margin-top:12px">
+    <div class="breakdown">
+      <div><span>Точных заказов</span><b>{{ stats.calibration_exact_orders }}</b></div>
+      <div><span>Старых / без точного snapshot</span><b>{{ stats.calibration_legacy_orders }}</b></div>
+      <div><span>Ниже рекомендуемой</span><b>{{ stats.calibration_below_recommended }}{% if stats.calibration_exact_orders %} · {{ '%.1f'|format(stats.calibration_below_recommended / stats.calibration_exact_orders * 100) }}%{% endif %}</b></div>
+      <div><span>Ниже минимальной</span><b>{{ stats.calibration_below_minimum }}{% if stats.calibration_exact_orders %} · {{ '%.1f'|format(stats.calibration_below_minimum / stats.calibration_exact_orders * 100) }}%{% endif %}</b></div>
+      <div class="total"><span>Среднее отклонение от рекомендации</span><b>{% if stats.calibration_average_deviation_uah >= 0 %}+{% endif %}{{ '%.0f'|format(stats.calibration_average_deviation_uah) }} грн · {% if stats.calibration_average_deviation_percent >= 0 %}+{% endif %}{{ '%.1f'|format(stats.calibration_average_deviation_percent * 100) }}%</b></div>
+    </div>
+    <div class="breakdown">
+      <div><span>Выручка точной выборки</span><b>{{ '%.0f'|format(stats.calibration_revenue) }} грн</b></div>
+      <div><span>Прибыль после окупаемости</span><b>{{ '%.0f'|format(stats.calibration_profit_after_payback) }} грн</b></div>
+      <div><span>Средняя прибыль на заказ</span><b>{{ '%.0f'|format(stats.calibration_average_profit_after_payback) }} грн</b></div>
+      <div><span>Фактически зачтено в окупаемость</span><b>{{ '%.0f'|format(stats.calibration_realized_payback) }} грн</b></div>
+      <div class="total"><span>Фактическая маржа после окупаемости</span><b>{{ '%.1f'|format(stats.calibration_margin_after_payback * 100) }}%</b></div>
+    </div>
+  </div>
+  <p class="hint">Эти показатели не пересчитываются по текущим настройкам и ничего не меняют автоматически. Они нужны, чтобы корректировать цену только после накопления реальных заказов.</p>
+</section>
+
 <div class="two-col">
 <section class="card"><h2>Финансы месяца</h2><div class="breakdown"><div><span>Операционный остаток после прямых расходов/налога/комиссий</span><b>{{ '%.0f'|format(stats.operating_surplus_month) }} грн</b></div><div><span>Направлено на оборудование</span><b>{{ '%.0f'|format(stats.realized_payback_month) }} грн</b></div><div class="total"><span>Осталось после зачёта окупаемости</span><b>{{ '%.0f'|format(stats.profit_after_payback_month) }} грн</b></div></div></section>
-<section class="card"><h2>О данных</h2><p>В статистику дохода попадают только заказы со статусом «Выполнен». Отменённые, черновики и удалённые заказы не влияют на прогноз.</p><p class="hint">Прогноз использует скользящее окно {{ stats.rolling_days }} дней, поэтому один слабый или сильный месяц не вызывает резкого скачка цены.</p></section>
+<section class="card"><h2>О данных</h2><p>В статистику дохода попадают только заказы со статусом «Выполнен». Отменённые, черновики и удалённые заказы не влияют на прогноз.</p><p class="hint">Прогноз использует скользящее окно {{ stats.rolling_days }} дней, поэтому один слабый или сильный месяц не вызывает резкого скачка цены. Ценовая дисциплина отдельно использует только точные v0.13 snapshot фактической цены.</p></section>
 </div>
 {% endblock %}
