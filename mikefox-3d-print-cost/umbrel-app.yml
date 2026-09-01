@@ -2,7 +2,7 @@ manifestVersion: 1
 id: mikefox-3d-print-cost
 category: developer
 name: 3D Print Cost
-version: "0.4.0-dev.1"
+version: "0.5.0-dev.1"
 tagline: Calculate fair 3D-print quotes and track order economics
 description: >-
   A local calculator and order ledger for 3D-printing services, designed for Bambu Lab X2D workflows.
@@ -12,7 +12,7 @@ description: >-
 
 
   Spoolman integration is read-only. This app never deducts filament and does not interfere with Bambuddy or Spoolman's own inventory workflow.
-releaseNotes: "Adds safe sliced Bambu Studio .3mf import for plate time and per-filament grams."
+releaseNotes: "Adds validated dry-run JSON backup restore with explicit confirmation, transactional replace-all apply, and an automatic safety backup of the previous local database state."
 developer: MikeFox303
 website: https://github.com/MikeFox303/3d-print-cost-umbrel
 dependencies: []
