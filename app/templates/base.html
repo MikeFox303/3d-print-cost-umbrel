@@ -21,6 +21,9 @@
   <link rel="stylesheet" href="/static/v14.css">
 </head>
 <body>
+<div class="connection-banner" data-connectivity-banner role="status" aria-live="polite" hidden>
+  <strong>Телефон офлайн.</strong> Связь с Umbrel недоступна — расчёт, сохранение и обновление данных возобновятся после подключения к сети.
+</div>
 <div class="shell">
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">3D</div><div><strong>Print Cost</strong><small>X2D / Umbrel</small></div></div>
@@ -50,6 +53,7 @@
 <nav class="bottom-nav">
   <a href="/">Обзор</a><a href="/orders">Заказы</a><a class="new" href="/orders/new">＋</a><a href="/filaments">Материалы</a><a href="/settings">Настройки</a>
 </nav>
+<script src="/static/connectivity.js"></script>
 <script src="/static/app.js"></script>
 {% block scripts %}{% endblock %}
 </body>
