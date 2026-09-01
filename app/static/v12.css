@@ -1,0 +1,98 @@
+/* v0.12 phone-first real-device polish */
+
+/* Shared disclosure cards: keep long settings/forms compact without hiding data. */
+details.card{padding:0;overflow:hidden}
+details.card>summary{list-style:none;cursor:pointer;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;font-weight:800;color:var(--text);user-select:none}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"+";color:var(--accent);font-size:22px;line-height:1;font-weight:500;transition:transform .15s ease}
+details.card[open]>summary::after{transform:rotate(45deg)}
+details.card[open]>summary{border-bottom:1px solid var(--line)}
+.details-body{padding:18px 20px 20px}
+.summary-copy{display:grid;gap:3px}.summary-copy small{color:var(--muted);font-weight:500;line-height:1.35}
+
+/* Settings */
+.settings-head{align-items:flex-start}
+.settings-rate-badge{white-space:normal;max-width:260px;line-height:1.35;text-align:left}
+.settings-grid .settings-section{align-self:start}
+.rate-explainer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:14px;border-top:1px solid var(--line)}
+.rate-explainer>div{background:#0d1829;border:1px solid rgba(38,55,84,.8);border-radius:11px;padding:10px 11px}
+.rate-explainer span,.rate-explainer strong{display:block}.rate-explainer span{color:var(--muted);font-size:11px}.rate-explainer strong{margin-top:4px;font-size:14px}
+.settings-save-footer{grid-column:1/-1;display:flex;justify-content:flex-end;padding-top:2px}.settings-save-footer .button{min-width:240px}
+.mobile-dirty-save{display:none}
+
+/* Materials */
+.materials-head{align-items:center}.materials-head .button{flex:0 0 auto}
+.spoolman-card{margin-bottom:18px}.spoolman-card .spoolman-status{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.add-filament-card{margin-top:18px;scroll-margin-top:100px}
+.add-filament-card .details-body{max-width:920px}
+.filament-empty-actions{display:flex;justify-content:center;margin-top:14px}
+
+/* Dashboard payback explanation stays compact but discoverable. */
+.payback-facts{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;padding-top:12px;border-top:1px solid rgba(38,55,84,.75);font-size:12px;color:var(--muted)}
+.payback-facts b{color:var(--text)}.payback-facts a{color:var(--accent);font-weight:700;white-space:nowrap}
+
+/* Diagnostic rows should never force the page wider than the phone. */
+.system-check-head{scroll-margin-top:96px}.system-check-page .breakdown>div>strong{max-width:58%;text-align:right;overflow-wrap:anywhere;word-break:break-word}
+
+@media(max-width:900px){
+  :root{--mobile-nav-h:72px}
+
+  /* Safari/umbrel webview: leave real space between sticky header and first page title. */
+  main{padding:16px 14px calc(118px + env(safe-area-inset-bottom))}
+  .mobile-head{margin:-16px -14px 28px;padding:12px 14px;min-height:64px}
+  .mobile-head + .page-head{margin-top:6px}
+  .page-head{gap:12px;align-items:flex-start}
+  .page-head h1{line-height:1.12}
+  .page-head p{line-height:1.55}
+  .bottom-nav{min-height:var(--mobile-nav-h)}
+
+  /* Long settings are collapsible on phones; JS keeps only the first group open initially. */
+  .settings-head{display:grid;grid-template-columns:1fr;gap:12px}
+  .settings-head .settings-rate-badge{max-width:none;width:max-content;max-width:100%}
+  .settings-grid{display:block}
+  .settings-grid .settings-section{margin-bottom:12px}
+  .settings-section>summary{padding:16px}
+  .settings-section .details-body{padding:16px}
+  .settings-section label:last-child{margin-bottom:0}
+  .rate-explainer{grid-template-columns:1fr 1fr 1fr;gap:7px}
+  .rate-explainer>div{padding:9px}
+  .settings-save-footer{padding:4px 0 0}.settings-save-footer .button{width:100%;min-width:0}
+  .settings-grid.is-dirty{padding-bottom:76px}
+  .mobile-dirty-save{position:fixed;z-index:19;left:14px;right:14px;bottom:calc(var(--mobile-nav-h) + 8px + env(safe-area-inset-bottom));padding:7px;background:rgba(9,16,29,.94);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 36px rgba(0,0,0,.34);backdrop-filter:blur(14px)}
+  .mobile-dirty-save:not([hidden]){display:block}
+  .mobile-dirty-save .button{min-height:44px}
+
+  /* Materials: list remains the main content; add form opens only on request. */
+  .materials-head{align-items:center}
+  .materials-head .button.primary{display:inline-flex;padding:9px 12px;min-height:40px}
+  .spoolman-card{margin-bottom:16px}
+  .add-filament-card{margin-top:14px;scroll-margin-top:90px}
+  .add-filament-card>summary{padding:16px}
+  .add-filament-card .details-body{padding:16px}
+  .filament-card{min-height:auto}
+
+  /* Fix the first-title clipping seen in the iPhone system-check screenshot. */
+  .system-check-head{margin-top:8px;align-items:flex-start}
+  .system-check-head h1{font-size:26px;line-height:1.15}
+  .system-check-head .button{display:inline-flex;flex:0 0 auto;min-width:78px}
+  .system-check-page .stats{margin-top:2px}
+  .system-check-page .breakdown>div{align-items:flex-start}
+  .system-check-page .breakdown>div>span{min-width:0}
+  .system-check-page .breakdown>div>strong{max-width:54%}
+
+  .payback-facts{align-items:flex-start;flex-wrap:wrap}
+}
+
+@media(max-width:480px){
+  .mobile-head{min-height:62px;margin-bottom:26px}
+  .materials-head h1,.settings-head h1{font-size:27px}
+  .materials-head .button.primary{font-size:13px}
+  .rate-explainer{grid-template-columns:1fr}
+  .rate-explainer>div{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .rate-explainer strong{margin-top:0;text-align:right}
+  .system-check-head{display:grid;grid-template-columns:minmax(0,1fr) auto}
+  .system-check-head p{grid-column:1/-1}
+  .system-check-head .button{grid-column:2;grid-row:1;align-self:start}
+  .system-check-page .breakdown>div{gap:10px}
+  .system-check-page .breakdown>div>strong{font-size:.95em}
+}
