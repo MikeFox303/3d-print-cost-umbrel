@@ -9,18 +9,26 @@
     <label class="check"><input type="checkbox" name="home_assistant_enabled" {% if settings.home_assistant_enabled %}checked{% endif %}> Включить чтение Home Assistant</label>
     <label>URL Home Assistant<input name="home_assistant_url" value="{{ settings.home_assistant_url }}" placeholder="http://homeassistant.local:8123"></label>
     <label>Сенсор энергии или мощности<input name="home_assistant_energy_entity" value="{{ settings.home_assistant_energy_entity }}" placeholder="sensor.x2d_energy"></label>
-    <p class="hint">Поддерживаются единицы <code>kWh</code>, <code>Wh</code>, <code>W</code> и <code>kW</code>. Для накопительного energy-сенсора берётся дельта; для power-сенсора мощность интегрируется по истории.</p>
-    <button class="button primary wide">Сохранить</button>
+    <p class="hint">Поддерживаются <code>kWh</code>, <code>Wh</code>, <code>W</code> и <code>kW</code>. Для накопительного energy-сенсора берётся дельта; для power-сенсора мощность интегрируется по истории.</p>
+
+    <h3>Long-Lived Access Token</h3>
+    {% if token_configured %}
+      {% if token_source == 'environment' %}<div class="forecast good">Токен настроен переменной окружения (override).</div>{% else %}<div class="forecast good">Токен сохранён локально.</div>{% endif %}
+    {% else %}<div class="forecast warn">Токен пока не настроен.</div>{% endif %}
+    <label>Новый токен<input type="password" name="home_assistant_token" autocomplete="new-password" placeholder="Оставьте пустым, чтобы не менять"></label>
+    {% if token_source != 'environment' %}<label class="check"><input type="checkbox" name="clear_home_assistant_token"> Удалить сохранённый локальный токен</label>{% endif %}
+    <p class="hint">Значение сохраняется отдельным secret-файлом в persistent data с правами <code>0600</code>, не хранится в SQLite, никогда не показывается обратно и не включается в JSON backup этого приложения.</p>
+    {% if token_source == 'environment' %}<p class="hint">Переменная <code>HOME_ASSISTANT_TOKEN</code> имеет приоритет над локальным secret-файлом. Это оставлено только как advanced override для обычного Docker.</p>{% endif %}
+
+    <button class="button primary wide">Сохранить подключение</button>
   </form>
 </section>
 <section class="card form-section">
-  <h2>Токен</h2>
-  {% if token_configured %}<div class="forecast good">HOME_ASSISTANT_TOKEN задан на сервере.</div>{% else %}<div class="forecast warn">HOME_ASSISTANT_TOKEN пока не задан.</div>{% endif %}
-  <p>Long-Lived Access Token намеренно <strong>не хранится в SQLite</strong>, не показывается в интерфейсе и не попадает в JSON backup.</p>
-  <p class="hint">Передайте его контейнеру как переменную окружения <code>HOME_ASSISTANT_TOKEN</code>. После изменения переменной контейнер нужно перезапустить.</p>
-  <h3>Как определяется окно</h3>
-  <p>Для выполненного заказа конец окна — время завершения заказа, начало — это время завершения минус длительность печати из Bambu Studio.</p>
-  <p class="hint">Результат показывается как post-print статистика и не изменяет сохранённую цену или финансовый snapshot заказа.</p>
+  <h2>Как работает</h2>
+  <p>Для выполненного заказа конец окна — время завершения заказа, начало — время завершения минус длительность печати из Bambu Studio.</p>
+  <p>Фактические кВт·ч и стоимость показываются только как post-print статистика и <strong>не меняют</strong> сохранённую цену или финансовый snapshot заказа.</p>
+  <h3>Без SSH</h3>
+  <p>На umbrelOS URL, entity ID и токен настраиваются полностью из этой страницы. Ручное редактирование Docker Compose не требуется.</p>
 </section>
 </div>
 <div class="card">

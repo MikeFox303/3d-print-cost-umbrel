@@ -4,111 +4,86 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.7.0-dev.1`
+`0.8.0-dev.1`
 
 ### Implemented
 
 - responsive web UI for desktop and phone;
-- SQLite persistence in a configurable data directory;
-- explicit database migration tracking with automatic pre-migration SQLite safety backups for future schema changes;
+- SQLite persistence plus explicit versioned migrations and pre-migration safety backups;
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
-- import sliced Bambu Studio `.3mf` and read plate time + per-filament `used_g` directly from `Metadata/slice_info.config`;
-- minimum price and recommended price;
-- bounded adaptive monthly payback rate with a reference-load floor and min/max rate caps;
-- order snapshots so later price/settings changes do not rewrite history;
-- order statuses, edit for non-completed orders, duplicate, archive, soft-delete/trash, restore and permanent delete;
-- completed orders are protected from financial editing — duplicate them instead;
-- realized payback recorded when an order is completed;
-- Spoolman **read-only** client (`GET` only) for viewing current spool data;
-- read-only Spoolman spool can be inserted into a quote as a snapshot of price/remaining weight;
-- warning when quoted grams exceed the Spoolman remaining weight snapshot;
-- Home Assistant **GET-only** post-print energy statistics from cumulative energy or power-history sensors;
-- Home Assistant token kept outside SQLite/JSON backups in `HOME_ASSISTANT_TOKEN`;
-- business statistics page with 90-day load/payback forecast;
-- CSV order export and full JSON backup export;
-- validated JSON backup restore with dry-run preview, exact-file fingerprint, explicit confirmation and automatic pre-restore safety backup;
-- expanded pricing regression tests for tax, OLX fees/cap, risk multipliers and adaptive payback fairness;
-- CI tests on pull requests;
-- multi-architecture GHCR image build for `amd64` and `arm64` after tests pass.
+- sliced Bambu Studio `.3mf` import for plate time and per-filament `used_g`;
+- minimum and recommended customer prices;
+- bounded adaptive monthly equipment-payback rate;
+- immutable historical pricing/material snapshots;
+- order statuses, edit/duplicate, archive, trash/restore and permanent delete;
+- business statistics with a 90-day load/payback forecast;
+- CSV export, full JSON business-data backup and validated transactional restore;
+- Spoolman **read-only** spool price/remaining-weight snapshots;
+- Home Assistant **GET-only** post-print energy statistics;
+- Home Assistant token configured from the browser and stored separately from SQLite/JSON backups;
+- CI regression tests and multi-architecture (`amd64`, `arm64`) container builds;
+- Community App package checks for umbrelOS.
 
 ### External-system boundary
 
-- **No Spoolman writes or material deductions.** Spoolman/Bambuddy continue to manage inventory independently.
-- **No Bambuddy integration for quote calculation.** Quotes are calculated before printing from Bambu Studio data.
-- Home Assistant measurements are post-print statistics only; they do not rewrite an order's saved quote/snapshot.
+- **No Spoolman writes or material deductions.** Bambuddy/Spoolman continue their own inventory workflow independently.
+- **Bambuddy is not used for quote calculation.** The quote exists before printing and uses Bambu Studio data.
+- Home Assistant is read-only and post-print; its measurement never rewrites the saved quote.
+
+## Quote workflow
+
+1. Slice the model in Bambu Studio.
+2. Import the sliced `.3mf` or enter time/material grams manually.
+3. Choose a local filament price, use a read-only Spoolman spool snapshot, or enter the actual purchase price manually.
+4. Preview minimum/recommended prices without saving.
+5. Choose the customer price and save the order.
+6. After completion, business statistics record the realized equipment-payback contribution.
+
+## Home Assistant
+
+Normal umbrelOS setup no longer requires an environment variable or SSH. Open **Home Assistant** inside 3D Print Cost and enter the base URL, sensor entity id and Long-Lived Access Token there.
+
+The token is stored as a separate persistent secret file with restrictive permissions. It is not stored in SQLite, is never displayed back in the UI and is excluded from the app's JSON business-data backup. For ordinary Docker deployments, `HOME_ASSISTANT_TOKEN` remains an optional advanced override.
+
+The integration performs only GET requests. It supports cumulative energy sensors (`kWh`/`Wh`) and power-history sensors (`W`/`kW`). The result is post-print statistics only.
 
 ## Local Docker run
 
 ```bash
-export HOME_ASSISTANT_TOKEN="your-long-lived-token"   # optional
 docker compose up --build
 ```
 
 Open `http://localhost:8585`.
 
-Persistent state is stored in the named Docker volume `app-data`.
+Persistent state is stored in the named Docker volume `app-data`. The container runs `python -m app.migrations` before Uvicorn starts.
 
-At container start, `python -m app.migrations` validates/upgrades the local schema before Uvicorn starts. See `docs/MIGRATIONS.md`.
+## umbrelOS package status
 
-## umbrelOS packaging
-
-This repository is structured as a small Community App Store:
+The repository contains a Community App Store package:
 
 - `umbrel-app-store.yml`
 - `mikefox-3d-print-cost/umbrel-app.yml`
 - `mikefox-3d-print-cost/docker-compose.yml`
 
-The Umbrel package uses the GHCR image produced by GitHub Actions. The web UI is protected by Umbrel `app_proxy` authentication.
+`v0.8` fixes an earlier CI bug where the container publication workflow still used a hard-coded `0.3.0-dev.1` tag. The workflow now reads `app.__version__`, builds both amd64 and arm64 on pull requests, and publishes the exact app version after merge to `main`.
 
-## Quote workflow
-
-1. Slice the model in Bambu Studio.
-2. Either import the sliced `.3mf` to fill time/grams, or enter those values manually.
-3. Optionally read a current Spoolman spool and insert its price/remaining-weight snapshot into the quote.
-4. Press **Calculate price**. Nothing is saved yet.
-5. Review minimum/recommended prices and the cost breakdown.
-6. Set the customer price and save the order.
-7. After completion, the final customer price determines how much payback contribution was actually realized.
-
-## Backup / restore workflow
-
-1. Download the current JSON backup from the Backup / Restore page.
-2. To restore, select a `3d-print-cost-backup-v1` file and run the dry-run preview.
-3. The app validates the whole structure and internal ID references without changing the database.
-4. Apply is bound to that exact file by SHA-256 fingerprint and also requires typing `RESTORE`.
-5. Immediately before replacement, the current local database state is exported automatically to a timestamped safety backup under persistent `DATA_DIR` storage.
-6. Settings, local filaments, orders/material snapshots and monthly payback rates are then replaced in one database transaction. A failure rolls the transaction back.
-
-Restore never contacts the printer, Bambu Cloud, Bambuddy, Spoolman or Home Assistant.
+The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. See [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the device verification checklist and the post-publication digest-pinning step.
 
 ## Pricing principles
 
-The customer quote is calculated before print from material, electricity, maintenance, manual work, packaging, expected reprint risk, tax/platform fees, selected margin and a bounded adaptive equipment-payback contribution.
+The quote includes actual material cost, electricity estimate, maintenance, minimal manual work, packaging, expected reprint risk, taxes/platform fees, selected margin and a bounded adaptive equipment-payback contribution.
 
-Taxes, percentage commissions and margin are solved from the **selling price**, not added as simple markups. OLX fixed/percentage fees and the configured fee cap are solved explicitly. Risk uses the expected-success-cost multiplier `1 / (1 - p)`.
+- material reserve is applied once (default 2%);
+- expected reprint cost uses `1 / (1 - p)`;
+- taxes, percentage platform fees and margin are solved from the **selling price**, not added as simple markups;
+- OLX fixed/percentage fees and configured cap are handled explicitly;
+- low monthly load cannot increase the payback hourly contribution above the configured cap;
+- the adaptive payback rate is snapshotted for the month so customers in the same period are treated consistently.
 
-The payback rate is deliberately capped so a low number of monthly orders does not force a random customer to finance printer idle time. The monthly rate is snapshotted, and completed-order income affects the amount actually credited toward equipment recovery.
+## Backup / restore
 
-## External systems
-
-### Spoolman
-
-Read only. The client contains no methods for updating inventory. Spoolman/Bambuddy remain responsible for their own material deductions.
-
-Spoolman supports both a spool-specific price and a filament default price. The app follows Spoolman's own precedence: spool price first, then filament price. For cost per gram it uses the spool's initial net filament weight when available, otherwise the nominal filament weight.
-
-### Bambuddy
-
-Not used by this app. It can continue working with Spoolman independently.
-
-### Home Assistant
-
-Read only. Configure the base URL and one sensor entity in the app, then pass a Long-Lived Access Token to the container as `HOME_ASSISTANT_TOKEN`.
-
-For an energy sensor (`kWh`/`Wh`) the app calculates the change during the print window and handles meter resets. For a power sensor (`W`/`kW`) it integrates the power history over time. The window is derived from the completed order: `completed_at - print_minutes` through `completed_at`.
-
-The result is displayed on the completed order as post-print statistics, including actual kWh, estimated kWh, difference and actual electricity cost. It is intentionally **not persisted into the order**, so the historical pre-print financial snapshot remains unchanged.
+Restore is deliberately replace-all, not merge. It requires a dry-run, exact-file fingerprint and the phrase `RESTORE`; immediately before replacement the app saves a safety copy of the current local business data. External services are never contacted by restore.
 
 ## Development
 
@@ -118,4 +93,4 @@ python -m app.migrations
 pytest -q
 ```
 
-All durable app state belongs to SQLite under `DATA_DIR`. External services are never treated as writable databases.
+All durable app state belongs under `DATA_DIR`. External services are never treated as writable databases.
