@@ -4,7 +4,9 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.12.0-dev.1`
+`0.13.0-dev.1`
+
+The currently released Community App package remains `0.12.0-dev.1` until the next immutable multi-architecture release gate.
 
 ### Implemented
 
@@ -13,6 +15,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
 - sliced Bambu Studio `.3mf` import for plate time and per-filament `used_g`;
+- conservative `.3mf` → local filament-price matching: unique material matches can be selected automatically, ambiguous matches remain manual;
 - minimum and recommended customer prices;
 - bounded adaptive monthly equipment-payback rate;
 - immutable historical pricing/material snapshots;
@@ -38,10 +41,12 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 1. Slice the model in Bambu Studio.
 2. Import the sliced `.3mf` or enter time/material grams manually.
-3. Choose a local filament price, use a read-only Spoolman spool snapshot, or enter the actual purchase price manually.
+3. For imported material rows, use an unambiguous local price match when available; otherwise choose the real local filament, use a read-only Spoolman spool snapshot, or enter the actual purchase price manually.
 4. Preview minimum/recommended prices without saving.
 5. Choose the customer price and save the order.
 6. After completion, business statistics record the realized equipment-payback contribution.
+
+The `.3mf` matcher deliberately does not guess across different material families. It only ignores punctuation, spacing and case (`PETG-HF` can match `PETG HF`), while labels such as `PLA-S` remain distinct from generic `PLA`. If several same-material local spools exist and color does not uniquely disambiguate them, the user must choose the real spool.
 
 ## Home Assistant
 
@@ -66,6 +71,8 @@ The check itself does not contact Spoolman or Home Assistant. A machine-readable
 ## Real umbrelOS validation
 
 `0.9.0-dev.1` completed the first physical Raspberry Pi/umbrelOS validation: Community App installation, `aarch64` System Check, writable persistent `/data`, SQLite/migrations, app-restart persistence and full host-reboot persistence all passed. `0.10.0-dev.1` refreshed the desktop interface. `0.11.0-dev.1` added the ultrawide/4K real-device pass. `0.12.0-dev.1` is the phone-first pass based directly on iPhone screenshots from the physical installation: mobile header/content spacing, safe bottom navigation, compact Settings disclosures and an on-demand add-filament form.
+
+`0.13.0-dev.1` is source development after that release. Its first workflow improvement assists local filament-price mapping immediately after Bambu Studio `.3mf` import while keeping ambiguous spool selection explicit.
 
 ## Local Docker run
 

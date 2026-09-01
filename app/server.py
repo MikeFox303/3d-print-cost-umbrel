@@ -19,13 +19,14 @@ from .backup_restore import (
 from .db import get_db
 from .diagnostics import build_system_check
 from .integrations import HomeAssistantReadOnlyError, ReadOnlyHomeAssistantClient
+from .models import Filament
 from .secrets import (
     clear_home_assistant_token,
     get_home_assistant_token,
     save_home_assistant_token,
 )
 from .settings import get_settings, set_setting
-from .three_mf import ThreeMFImportError, import_bambu_3mf
+from .three_mf import ThreeMFImportError, import_bambu_3mf, match_local_filaments
 
 app = core.app
 BASE_DIR = Path(__file__).resolve().parent
@@ -79,14 +80,34 @@ if not any(
 ):
 
     @app.post("/api/import/3mf")
-    async def import_3mf(file: UploadFile = File(...)):
+    async def import_3mf(file: UploadFile = File(...), db: Session = Depends(get_db)):
         try:
             file.file.seek(0)
             plates = import_bambu_3mf(file.file, file.filename or "")
+            local_filaments = (
+                db.query(Filament)
+                .filter(Filament.archived.is_(False))
+                .order_by(Filament.brand, Filament.name, Filament.id)
+                .all()
+            )
+            payload = []
+            for plate in plates:
+                plate_data = plate.to_dict()
+                for filament in plate_data["filaments"]:
+                    match = match_local_filaments(
+                        filament.get("type"),
+                        filament.get("color"),
+                        local_filaments,
+                    )
+                    filament["local_candidates"] = match["candidates"]
+                    filament["auto_local_filament_id"] = match["auto_select_id"]
+                    filament["auto_local_match_reason"] = match["auto_select_reason"]
+                payload.append(plate_data)
             return {
                 "filename": file.filename or "",
                 "source": "bambu_studio_3mf",
-                "plates": [plate.to_dict() for plate in plates],
+                "local_matching": "read_only_local_price_database",
+                "plates": payload,
             }
         except ThreeMFImportError as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)

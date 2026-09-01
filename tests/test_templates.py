@@ -60,3 +60,18 @@ def test_v012_phone_real_device_polish_present():
     assert "payback-facts" in dashboard
     assert "setupSettingsForm" in js
     assert "setupDetailsActions" in js
+
+
+def test_v013_3mf_local_filament_matching_ui_contract():
+    root = Path(__file__).resolve().parents[1]
+    importer = (root / "app" / "v04_static" / "three_mf.js").read_text()
+    app_js = (root / "app" / "static" / "app.js").read_text()
+    server = (root / "app" / "server.py").read_text()
+
+    assert "auto_local_filament_id" in importer
+    assert "local_candidates" in importer
+    assert "автоматически не угадываю" in importer
+    assert "window.refreshRemainingWarnings" in app_js
+    assert "window.invalidatePreview" in app_js
+    assert '"local_matching": "read_only_local_price_database"' in server
+    assert "match_local_filaments" in server

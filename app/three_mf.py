@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Iterable
 from xml.etree import ElementTree as ET
 from zipfile import BadZipFile, ZipFile
 
@@ -83,6 +82,95 @@ def _to_bool(raw: str | None) -> bool | None:
     if raw is None or raw == "":
         return None
     return raw.strip().lower() in {"1", "true", "yes"}
+
+
+def normalize_material_name(value: str | None) -> str:
+    """Normalize Bambu/local material labels without collapsing distinct families.
+
+    This intentionally only ignores punctuation/spacing/case. For example,
+    ``PETG-HF`` and ``PETG HF`` match, while ``PLA-S`` does not silently become
+    generic ``PLA``. Ambiguous support/material aliases therefore stay manual.
+    """
+    return "".join(ch for ch in str(value or "").casefold() if ch.isalnum())
+
+
+def _normalize_color(value: str | None) -> str:
+    return "".join(ch for ch in str(value or "").casefold() if ch.isalnum())
+
+
+def match_local_filaments(
+    imported_type: str | None,
+    imported_color: str | None,
+    filaments: Iterable[object],
+) -> dict:
+    """Return safe local-price candidates and an optional unambiguous auto match.
+
+    Auto-selection is deliberately conservative:
+    - one active local filament with the exact normalized material => select it;
+    - several material matches but exactly one exact normalized color => select it;
+    - otherwise keep the row manual so the user chooses the real spool.
+    """
+    material_key = normalize_material_name(imported_type)
+    if not material_key:
+        return {"candidates": [], "auto_select_id": None, "auto_select_reason": ""}
+
+    matches = [
+        filament
+        for filament in filaments
+        if normalize_material_name(getattr(filament, "material", "")) == material_key
+    ]
+    matches.sort(
+        key=lambda filament: (
+            str(getattr(filament, "brand", "")).casefold(),
+            str(getattr(filament, "name", "")).casefold(),
+            int(getattr(filament, "id", 0) or 0),
+        )
+    )
+
+    color_key = _normalize_color(imported_color)
+    exact_color = []
+    if color_key:
+        exact_color = [
+            filament
+            for filament in matches
+            if _normalize_color(getattr(filament, "color", "")) == color_key
+        ]
+
+    auto_select_id = None
+    auto_select_reason = ""
+    if len(exact_color) == 1:
+        auto_select_id = int(getattr(exact_color[0], "id"))
+        auto_select_reason = "material+color"
+    elif len(matches) == 1:
+        auto_select_id = int(getattr(matches[0], "id"))
+        auto_select_reason = "material"
+
+    candidates = []
+    for filament in matches:
+        brand = str(getattr(filament, "brand", "") or "").strip()
+        name = str(getattr(filament, "name", "") or "").strip()
+        material = str(getattr(filament, "material", "") or "").strip()
+        color = str(getattr(filament, "color", "") or "").strip()
+        label = " ".join(part for part in (brand, name) if part).strip() or material or "Филамент"
+        if color:
+            label = f"{label} · {color}"
+        candidates.append(
+            {
+                "id": int(getattr(filament, "id")),
+                "label": label,
+                "brand": brand,
+                "name": name,
+                "material": material,
+                "color": color,
+                "price_per_g": float(getattr(filament, "price_per_g", 0.0) or 0.0),
+            }
+        )
+
+    return {
+        "candidates": candidates,
+        "auto_select_id": auto_select_id,
+        "auto_select_reason": auto_select_reason,
+    }
 
 
 def parse_slice_info_xml(xml_bytes: bytes) -> list[ImportedPlate]:
