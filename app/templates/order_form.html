@@ -1,11 +1,21 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title }} — 3D Print Cost{% endblock %}
 {% block content %}
+<style>
+.import-plates{display:grid;gap:10px;margin-top:10px}.import-plate{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line,#273244);border-radius:12px}.import-plate small{display:block;margin-top:3px}.import-success{margin-bottom:10px;padding:10px;border-radius:10px;background:rgba(34,197,94,.12)}
+</style>
 <div class="page-head">
   <div><h1>{{ page_title }}</h1><p>Расчёт делается до печати по данным после Slice в Bambu Studio.</p></div>
   {% if order and not duplicate %}<a class="button" href="/orders/{{order.id}}">← К заказу</a>{% endif %}
 </div>
 {% if order and not duplicate %}<div class="notice">Редактирование создаёт новый финансовый snapshot по текущим настройкам и актуальным ценам выбранных локальных катушек.</div>{% endif %}
+<div class="card import-card">
+  <div class="row between import-head">
+    <div><h2>Импорт из Bambu Studio</h2><p>Выберите нарезанный <code>.3mf</code>: приложение прочитает только время и расход материалов из <code>Metadata/slice_info.config</code>.</p></div>
+    <label class="button small file-button">Выбрать .3mf<input type="file" id="threeMfFile" accept=".3mf" hidden></label>
+  </div>
+  <div id="threeMfResult" class="hint">Файл никуда не сохраняется. Импорт не запускает печать и не обращается к Bambuddy.</div>
+</div>
 <form method="post" action="{{ form_action }}" class="form-grid" id="orderForm">
   <section class="card form-section">
     <h2>1. Заказ</h2>
@@ -114,4 +124,8 @@
     <div class="remaining-hint"></div>
   </div>
 </template>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="/v04-static/three_mf.js"></script>
 {% endblock %}
