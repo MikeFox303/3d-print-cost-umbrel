@@ -1,7 +1,7 @@
 import pytest
 from fastapi import HTTPException
 
-from app.server import _validate_quote_inputs
+from app.main import _validate_quote_inputs
 
 
 def base_data():
