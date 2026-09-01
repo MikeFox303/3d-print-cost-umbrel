@@ -6,8 +6,8 @@ PACKAGE = ROOT / "mikefox-3d-print-cost"
 # This is the currently published Community App package. Source development may
 # intentionally move one version ahead while CI publishes the next multi-arch
 # runtime and before its immutable digest is known/pinned in a package PR.
-EXPECTED_VERSION = "0.11.0-dev.1"
-EXPECTED_IMAGE_DIGEST = "sha256:898e165c8d66710959ebf883b23a946dd1ed86c22e5a27318b7781b251f827df"
+EXPECTED_VERSION = "0.12.0-dev.1"
+EXPECTED_IMAGE_DIGEST = "sha256:2066ba5d26be9821a2778637b4a26636ec759edd21c53d69217616014883b550"
 
 
 def read(path: Path) -> str:

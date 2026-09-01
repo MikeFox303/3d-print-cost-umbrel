@@ -1,6 +1,6 @@
 # Install and verify on umbrelOS
 
-This runbook tracks the **real-device** verification of 3D Print Cost. The current Community App release is `0.11.0-dev.1`.
+This runbook tracks the **real-device** verification of 3D Print Cost. The current Community App release is `0.12.0-dev.1`.
 
 The repository and container are checked in CI for `linux/amd64` and `linux/arm64`. A successful authenticated GitHub Actions push is not enough: umbrelOS must also be able to pull the exact pinned image **anonymously**.
 
@@ -15,13 +15,13 @@ https://github.com/MikeFox303/3d-print-cost-umbrel
 Expected app version:
 
 ```text
-0.11.0-dev.1
+0.12.0-dev.1
 ```
 
 Pinned runtime image:
 
 ```text
-ghcr.io/mikefox303/3d-print-cost-umbrel:0.11.0-dev.1@sha256:898e165c8d66710959ebf883b23a946dd1ed86c22e5a27318b7781b251f827df
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.12.0-dev.1@sha256:2066ba5d26be9821a2778637b4a26636ec759edd21c53d69217616014883b550
 ```
 
 ## 0. Release installability gate
@@ -32,8 +32,6 @@ The repository has a dedicated **Umbrel installability** workflow. Its `anonymou
 
 A release is not considered installable while any of these jobs is red.
 
-The first physical `0.9.0-dev.1` install exposed a private-GHCR failure (`401 Unauthorized`). The GHCR package has since been made Public and anonymous-pull validation is now a permanent release gate.
-
 ## 1. Add or refresh the Community App Store
 
 Use the Community App Store management UI in umbrelOS and add, or refresh, this GitHub repository:
@@ -42,7 +40,7 @@ Use the Community App Store management UI in umbrelOS and add, or refresh, this 
 https://github.com/MikeFox303/3d-print-cost-umbrel
 ```
 
-Find **3D Print Cost** and confirm the listing shows version `0.11.0-dev.1` before installing/updating.
+Find **3D Print Cost** and confirm the listing shows version `0.12.0-dev.1` before installing/updating.
 
 Do not copy compose files manually into Umbrel and do not add a Home Assistant token through SSH for the normal installation flow.
 
@@ -62,7 +60,7 @@ Expected critical results on Raspberry Pi:
 
 | Check | Expected result |
 |---|---|
-| Version | `0.11.0-dev.1` |
+| Version | `0.12.0-dev.1` |
 | Architecture | ARM64 (`aarch64` or `arm64`) |
 | Persistent data | writable |
 | SQLite | reachable |
@@ -81,20 +79,21 @@ Persistence was already verified on the physical Umbrel host using `0.9.0-dev.1`
 - SQLite/settings value survived both;
 - the temporary setting was then reverted.
 
-For `0.11`, confirm after update that existing settings/data are still present. There is no schema migration in this UI-only release and the same `${APP_DATA_DIR}/data` mount is retained.
+For `0.12`, confirm after update that existing settings/data are still present. There is no schema migration in this UI-only release and the same `${APP_DATA_DIR}/data` mount is retained.
 
-## 5. Verify real-device interface
+## 5. Verify phone-first interface
 
-At normal browser zoom on the wide desktop display, verify:
+On the same iPhone/browser path used for the `0.11` screenshots, verify:
 
-- the content workspace is substantially wider than `0.10`;
-- sidebar/navigation and System Check text are comfortably readable;
-- dashboard cards use more horizontal space without becoming excessively tall;
-- the Materials form and Spoolman panel scale proportionally;
-- the empty local-material database message spans the full available material grid;
-- phone/tablet layout remains compact and usable.
+- **Проверка системы** starts fully below the sticky mobile header; the title is no longer clipped;
+- long pages can scroll to their final fields without the fixed bottom navigation covering content;
+- **Настройки** shows compact disclosure sections, with only the first section initially open on phone;
+- the mobile **Сохранить изменения** bar is hidden until a setting is changed and sits above, not over, the bottom navigation;
+- the normal Save button still exists at the end of Settings;
+- **Материалы** shows Spoolman/local materials first and the long add-filament form remains collapsed until **+ Катушка** is pressed;
+- the dashboard payback card has a compact explanation and direct link to the rule settings.
 
-Capture fresh screenshots of Dashboard, Materials and System Check after the update so further tuning is based on the real rendered result.
+Capture fresh screenshots of Dashboard, Settings, Materials and System Check after the update. These screenshots are the release acceptance check for the phone UI.
 
 ## 6. Verify Bambu Studio import
 
@@ -133,10 +132,12 @@ Migrations up to date: PASS
 App restart persistence: PASS
 Host reboot persistence: PASS
 0.10.0-dev.1 interface/update validation: PASS — screenshots captured
-0.11.0-dev.1 ultrawide interface validation: PENDING
-Bambu .3mf import: PENDING
-Spoolman read-only test: PENDING
-Home Assistant GET-only test: PENDING
+0.11.0-dev.1 desktop/ultrawide + phone screenshots: PASS — feedback captured
+0.12.0-dev.1 phone-first interface validation: PENDING
+Bambu .3mf real file import: PENDING
+Spoolman read-only real-data test: PENDING
+Home Assistant GET-only real-data test: PENDING
+Complete disposable real order: PENDING
 ```
 
 ## Recovery rule
