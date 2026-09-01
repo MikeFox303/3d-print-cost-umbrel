@@ -45,9 +45,9 @@
   <div class="card breakdown">
     <h2>Spoolman</h2>
     <div><span>Включён</span><strong>{{ 'Да' if report.integrations.spoolman.enabled else 'Нет' }}</strong></div>
-    <div><span>Настроен</span><strong>{{ 'Да' if report.integrations.spoolman.configured else 'Нет' }}</strong></div>
+    <div><span>URL задан</span><strong>{{ 'Да' if report.integrations.spoolman.configured else 'Нет' }}</strong></div>
     <div><span>Режим</span><strong>Read only</strong></div>
-    <p class="hint">Эта проверка не обращается к Spoolman и ничего там не изменяет.</p>
+    <p class="hint">Наличие URL не означает, что интеграция включена. Эта проверка не обращается к Spoolman и ничего там не изменяет.</p>
   </div>
 
   <div class="card breakdown">
