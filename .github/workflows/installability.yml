@@ -1,0 +1,114 @@
+name: Umbrel installability
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'mikefox-3d-print-cost/docker-compose.yml'
+      - 'mikefox-3d-print-cost/umbrel-app.yml'
+      - '.github/workflows/installability.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'mikefox-3d-print-cost/docker-compose.yml'
+      - 'mikefox-3d-print-cost/umbrel-app.yml'
+      - '.github/workflows/installability.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  anonymous-package-pull:
+    name: anonymous GHCR pull
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Read the exact image used by the Umbrel package
+        id: image
+        shell: bash
+        run: |
+          image="$(awk '/^[[:space:]]+image:/ {print $2; exit}' mikefox-3d-print-cost/docker-compose.yml)"
+          test -n "$image"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "Umbrel package image: $image"
+      - name: Verify anonymous pull access
+        shell: bash
+        run: |
+          # umbrelOS Community App installation pulls registry images without
+          # GitHub credentials. A private GHCR package therefore fails with
+          # 401 Unauthorized even when the image itself was built correctly.
+          docker logout ghcr.io >/dev/null 2>&1 || true
+          docker buildx imagetools inspect "${{ steps.image.outputs.image }}"
+
+  runtime-smoke:
+    name: runtime smoke (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build runnable image
+        shell: bash
+        run: |
+          docker buildx build \
+            --platform "${{ matrix.platform }}" \
+            --load \
+            -t "3d-print-cost-smoke:${{ matrix.arch }}" \
+            .
+      - name: Prepare Umbrel-like persistent data directory
+        shell: bash
+        run: |
+          data_dir="$RUNNER_TEMP/3d-print-cost-${{ matrix.arch }}-data"
+          mkdir -p "$data_dir"
+          sudo chown 1000:1000 "$data_dir"
+          echo "DATA_DIR_HOST=$data_dir" >> "$GITHUB_ENV"
+      - name: Start container as packaged runtime user
+        shell: bash
+        run: |
+          docker run -d \
+            --name "3d-print-cost-smoke-${{ matrix.arch }}" \
+            --platform "${{ matrix.platform }}" \
+            -e DATA_DIR=/data \
+            -e PORT=8080 \
+            -v "$DATA_DIR_HOST:/data" \
+            "3d-print-cost-smoke:${{ matrix.arch }}"
+      - name: Wait for migrations and health check
+        shell: bash
+        run: |
+          container="3d-print-cost-smoke-${{ matrix.arch }}"
+          for attempt in $(seq 1 60); do
+            running="$(docker inspect --format '{{.State.Running}}' "$container")"
+            health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
+            echo "attempt=$attempt running=$running health=$health"
+            if [ "$health" = "healthy" ]; then
+              docker exec "$container" python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2).read().decode())"
+              exit 0
+            fi
+            if [ "$running" != "true" ]; then
+              docker logs "$container"
+              exit 1
+            fi
+            sleep 1
+          done
+          docker logs "$container"
+          exit 1
+      - name: Show container logs
+        if: always()
+        shell: bash
+        run: docker logs "3d-print-cost-smoke-${{ matrix.arch }}" || true
