@@ -92,7 +92,10 @@ jobs:
         shell: bash
         run: |
           container="3d-print-cost-smoke-${{ matrix.arch }}"
-          for attempt in $(seq 1 60); do
+          # Native arm64 hardware starts much faster than QEMU emulation, but
+          # emulated Python startup can take just over a minute. Give CI up to
+          # three minutes so a healthy arm64 image is not reported as broken.
+          for attempt in $(seq 1 180); do
             running="$(docker inspect --format '{{.State.Running}}' "$container")"
             health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container")"
             echo "attempt=$attempt running=$running health=$health"
