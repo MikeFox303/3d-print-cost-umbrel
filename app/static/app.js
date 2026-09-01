@@ -222,5 +222,11 @@ function invalidatePreview() {
   if (panel && !panel.classList.contains('hidden')) panel.classList.add('stale');
 }
 
+// Page-specific scripts (for example the Bambu 3MF importer) may replace
+// material rows after the main DOM setup has run. Expose only these two UI
+// refresh hooks; no business logic or external-write capability is exported.
+window.refreshRemainingWarnings = refreshRemainingWarnings;
+window.invalidatePreview = invalidatePreview;
+
 function money(v) { return `${Math.round(Number(v || 0))} грн`; }
 function escapeHtml(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));}
