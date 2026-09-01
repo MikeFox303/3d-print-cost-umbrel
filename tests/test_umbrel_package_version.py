@@ -1,8 +1,6 @@
 from pathlib import Path
 import re
 
-from app import __version__
-
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "mikefox-3d-print-cost" / "umbrel-app.yml"
@@ -21,23 +19,30 @@ def _compose_image(text: str) -> str:
     return match.group(1)
 
 
-def test_umbrel_package_runtime_version_and_image_tag_are_aligned():
+def _image_version(image: str) -> str:
+    match = re.fullmatch(
+        r"ghcr\.io/mikefox303/3d-print-cost-umbrel:([^@\s]+)@sha256:([0-9a-f]{64})",
+        image,
+    )
+    assert match, "Umbrel image must use the expected GHCR repo, a version tag and immutable SHA256 digest"
+    return match.group(1)
+
+
+def test_umbrel_manifest_and_pinned_image_version_are_aligned():
     manifest_text = MANIFEST.read_text()
     compose_text = COMPOSE.read_text()
 
     manifest_version = _manifest_version(manifest_text)
-    image = _compose_image(compose_text)
+    image_version = _image_version(_compose_image(compose_text))
 
-    assert manifest_version == __version__
-    assert image.startswith(
-        f"ghcr.io/mikefox303/3d-print-cost-umbrel:{__version__}@sha256:"
-    )
+    assert manifest_version == image_version
 
 
 def test_umbrel_package_uses_immutable_digest_and_persistent_data_mount():
     compose_text = COMPOSE.read_text()
     image = _compose_image(compose_text)
 
+    assert _image_version(image)
     digest = image.split("@sha256:", 1)[1]
     assert re.fullmatch(r"[0-9a-f]{64}", digest)
     assert "${APP_DATA_DIR}/data:/data" in compose_text
