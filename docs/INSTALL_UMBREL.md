@@ -2,7 +2,7 @@
 
 This runbook is for the first **real-device** verification of 3D Print Cost `0.9.0-dev.1`.
 
-The repository and container are already checked in CI for `linux/amd64` and `linux/arm64`, but a successful CI build is not treated as proof that the complete umbrelOS lifecycle works on a physical machine.
+The repository and container are checked in CI for `linux/amd64` and `linux/arm64`, but a successful authenticated GitHub Actions push is not proof that umbrelOS can install the image. Community App installation must also be able to pull the pinned container **anonymously**.
 
 ## Expected package
 
@@ -24,6 +24,25 @@ Pinned runtime image:
 ghcr.io/mikefox303/3d-print-cost-umbrel:0.9.0-dev.1@sha256:32ad05edf930103b69c458af43528bd3f44c4ed3f01c9a97aaacad2f4ad9bd62
 ```
 
+## 0. Release installability gate
+
+Before attempting a Community App installation, the exact pinned GHCR image must be publicly readable without GitHub credentials.
+
+The repository has a dedicated **Umbrel installability** CI workflow. Its `anonymous GHCR pull` job reads the exact image reference from `mikefox-3d-print-cost/docker-compose.yml`, explicitly logs out of GHCR and inspects the manifest without credentials.
+
+A release is not considered installable while this job is red.
+
+GitHub Container Registry packages created under a personal account are private by default. For a Community App, the package must be changed to **Public** in the container package settings so umbrelOS can pull it without a registry login. GitHub warns that changing a package to Public is irreversible.
+
+Known failure signature:
+
+```text
+failed to authorize: failed to fetch anonymous token
+401 Unauthorized
+```
+
+The first physical install of `0.9.0-dev.1` reproduced exactly this failure before the application container started. If this signature appears, fix GHCR package visibility first; do not edit the Umbrel compose file or application database.
+
 ## 1. Add the Community App Store
 
 Use the Community App Store management UI in umbrelOS and add the GitHub repository URL above. Umbrel's official Community App Store template uses this same flow: a Community Store is added by its GitHub URL through the umbrelOS interface.
@@ -37,6 +56,8 @@ Do not copy compose files manually into Umbrel and do not add a Home Assistant t
 Install **3D Print Cost** from the added Community Store and open it from the Umbrel app tile.
 
 The expected browser entry point is handled by Umbrel `app_proxy`. The application itself listens on port `8080` inside the app network; the Community App manifest exposes it through Umbrel on port `8585`.
+
+If the install fails before an app tile can open, check the `anonymous GHCR pull` gate before debugging application startup.
 
 ## 3. Run System Check first
 
@@ -102,6 +123,7 @@ Test date:
 umbrelOS version:
 Hardware:
 App version shown:
+Anonymous GHCR pull: PASS / FAIL
 Architecture shown by System Check:
 Persistent data writable: PASS / FAIL
 SQLite reachable: PASS / FAIL
@@ -116,8 +138,14 @@ Pinned image/digest confirmed: PASS / FAIL / NOT CHECKED
 Notes / log errors:
 ```
 
-Only after the critical checks, restart persistence and host-reboot persistence pass should the package be considered verified on that physical umbrelOS device.
+Only after the anonymous image pull, critical System Check results, restart persistence and host-reboot persistence pass should the package be considered verified on that physical umbrelOS device.
 
 ## Recovery rule for the first test
 
-If the first installation behaves unexpectedly, do not immediately edit the compose file or database in place. Capture the **System Check** result and relevant app logs first. This keeps the failure reproducible and makes it possible to distinguish an Umbrel packaging problem from an application/data problem.
+If the first installation behaves unexpectedly, do not immediately edit the compose file or database in place. Determine the failure boundary first:
+
+1. if the image cannot be pulled anonymously, fix registry visibility;
+2. if the image pulls but the container does not become healthy, inspect runtime logs;
+3. if the app opens, use **System Check** before changing data or configuration.
+
+This keeps failures reproducible and distinguishes registry, Umbrel packaging, application startup and application-data problems.
