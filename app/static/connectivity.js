@@ -55,8 +55,10 @@
         if (!response.ok) throw new Error(`healthz ${response.status}`);
         const payload = await response.json();
         if (payload?.status !== 'ok') throw new Error('healthz payload');
+        if (activeController !== controller) return;
         setState('online');
       } catch (_error) {
+        if (activeController !== controller) return;
         setState(navigator.onLine === false ? 'device-offline' : 'umbrel-unavailable');
       } finally {
         window.clearTimeout(timeout);
