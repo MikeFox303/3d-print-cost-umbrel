@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}#{{ '%04d'|format(order.id) }} {{ order.title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="eyebrow">Заказ #{{ '%04d'|format(order.id) }}</div><h1>{{ order.title }}</h1><p>{{ status_labels.get(order.status,order.status) }}{% if order.client %} · {{order.client}}{% endif %}</p></div><div class="row action-wrap">{% if order.status != 'completed' %}<a class="button" href="/orders/{{order.id}}/edit">Редактировать</a>{% endif %}<a class="button" href="/orders/{{order.id}}/duplicate">Дублировать</a><form method="post" action="/orders/{{order.id}}/archive"><button class="button">{% if order.archived %}Вернуть из архива{% else %}Архивировать{% endif %}</button></form><form method="post" action="/orders/{{order.id}}/trash" onsubmit="return confirm('Переместить заказ в корзину?')"><button class="button danger">В корзину</button></form></div></div>
+<div class="price-hero">
+  <div class="card price-card minimum"><span>Минимальная цена</span><strong>{{ '%.0f'|format(order.minimum_price) }} грн</strong><small>Ниже — экономически невыгодно</small></div>
+  <div class="card price-card recommended"><span>Рекомендуемая</span><strong>{{ '%.0f'|format(order.recommended_price) }} грн</strong><small>С вкладом в адаптивную окупаемость</small></div>
+  <div class="card price-card final"><span>Цена клиенту</span><strong>{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</strong><small>Зафиксирована в заказе</small></div>
+</div>
+<div class="two-col">
+<section class="card"><h2>Расшифровка</h2><div class="breakdown">
+<div><span>Материал</span><b>{{ '%.2f'|format(snap.get('material',0)) }} грн</b></div><div><span>Электричество</span><b>{{ '%.2f'|format(snap.get('electricity',0)) }} грн</b></div><div><span>Обслуживание</span><b>{{ '%.2f'|format(snap.get('maintenance',0)) }} грн</b></div><div><span>Ручной труд</span><b>{{ '%.2f'|format(snap.get('labor',0)) }} грн</b></div><div><span>Упаковка</span><b>{{ '%.2f'|format(snap.get('packaging',0)) }} грн</b></div><div><span>Риск</span><b>{{ '%.1f'|format(snap.get('risk_rate',0)*100) }}%</b></div><div class="total"><span>Производственная себестоимость</span><b>{{ '%.2f'|format(order.production_cost) }} грн</b></div><div><span>Окупаемость</span><b>{{ '%.2f'|format(order.planned_payback) }} грн ({{'%.2f'|format(order.payback_rate_snapshot)}}/ч)</b></div></div></section>
+<section class="card"><h2>Материалы</h2>{% for m in order.materials %}<div class="material-line"><div><strong>{{m.name_snapshot}}</strong><small>{{m.material_snapshot}}</small></div><div>{{'%.1f'|format(m.grams)}} г × {{'%.3f'|format(m.price_per_g_snapshot)}} грн</div></div>{% else %}<p>Не указаны.</p>{% endfor %}</section>
+</div>
+<div class="two-col">
+<section class="card"><h2>Статус</h2><form method="post" action="/orders/{{order.id}}/status" class="row"><select name="status">{% for k,v in status_labels.items() %}<option value="{{k}}" {% if k==order.status %}selected{% endif %}>{{v}}</option>{% endfor %}</select><button class="button primary">Сохранить</button></form><p class="hint">При статусе «Выполнен» фиксируется фактически реализованный вклад в окупаемость на основе цены клиента.</p></section>
+<section class="card"><h2>Окупаемость</h2><div class="metric-inline"><span>План</span><strong>{{'%.2f'|format(order.planned_payback)}} грн</strong></div><div class="metric-inline"><span>Фактически зачтено</span><strong>{{'%.2f'|format(order.realized_payback)}} грн</strong></div></section>
+</div>
+{% if order.status == 'completed' %}
+<section class="card" style="margin-top:16px">
+  <div class="row between"><div><h2>Фактическая энергия · Home Assistant</h2><p>Читается по истории сенсора; заказ и его финансовый snapshot не изменяются.</p></div><span class="badge readonly">GET ONLY</span></div>
+  <button class="button" type="button" id="loadHaEnergy">Получить фактическую энергию</button>
+  <div id="haEnergyResult" class="hint">Окно: время завершения минус длительность печати.</div>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if order.status == 'completed' %}
+<script>
+(() => {
+ const button=document.getElementById('loadHaEnergy'); const box=document.getElementById('haEnergyResult'); if(!button||!box)return;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+ button.addEventListener('click',async()=>{ button.disabled=true; box.textContent='Читаю историю Home Assistant…';
+  try{ const response=await fetch('/api/orders/{{order.id}}/home-assistant-energy'); const data=await response.json(); if(!response.ok)throw new Error(data.detail||data.error||'Ошибка Home Assistant');
+   const diff=Number(data.difference_kwh||0); box.innerHTML=`<div class="breakdown" style="margin-top:12px"><div><span>Фактически</span><b>${Number(data.kwh).toFixed(3)} кВт·ч</b></div><div><span>Расчётно</span><b>${Number(data.estimated_kwh).toFixed(3)} кВт·ч</b></div><div><span>Разница</span><b>${diff>=0?'+':''}${diff.toFixed(3)} кВт·ч</b></div><div><span>Фактическая стоимость</span><b>${Number(data.actual_cost).toFixed(2)} грн</b></div><div><span>Сенсор</span><b>${esc(data.entity_id)} · ${esc(data.sensor_unit)}</b></div><div><span>Метод</span><b>${esc(data.mode)}</b></div></div><p class="hint">Результат не сохраняется в заказе.</p>`;
+  }catch(error){box.innerHTML=`<div class="warning">${esc(error.message)} · <a href="/home-assistant">Настроить Home Assistant</a></div>`;}finally{button.disabled=false;}
+ });
+})();
+</script>
+{% endif %}
+{% endblock %}
