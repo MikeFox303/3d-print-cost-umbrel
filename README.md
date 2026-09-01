@@ -4,7 +4,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.3.0-dev.1`
+`0.4.0-dev.1`
 
 ### Implemented
 
@@ -12,6 +12,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - SQLite persistence in a configurable data directory;
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
+- import sliced Bambu Studio `.3mf` and read plate time + per-filament `used_g` directly from `Metadata/slice_info.config`;
 - minimum price and recommended price;
 - bounded adaptive monthly payback rate with a reference-load floor and min/max rate caps;
 - order snapshots so later price/settings changes do not rewrite history;
@@ -31,8 +32,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 - **No Spoolman writes or material deductions.** Spoolman/Bambuddy continue to manage inventory independently.
 - **No Bambuddy integration for quote calculation.** Quotes are calculated before printing from Bambu Studio data.
-- Home Assistant energy history import is planned; until then a quote uses configured average power or manually entered kWh.
-- `.3mf` import is planned.
+- Home Assistant energy history import and JSON restore remain planned. Until then a quote uses configured average power or manually entered kWh.
 
 ## Local Docker run
 
@@ -57,7 +57,7 @@ The Umbrel package uses the GHCR image produced by GitHub Actions. The web UI is
 ## Quote workflow
 
 1. Slice the model in Bambu Studio.
-2. Enter estimated print time and total grams for each material, or select a local saved filament price.
+2. Either import the sliced `.3mf` to fill time/grams, or enter those values manually.
 3. Optionally read a current Spoolman spool and insert its price/remaining-weight snapshot into the quote.
 4. Press **Calculate price**. Nothing is saved yet.
 5. Review minimum/recommended prices and the cost breakdown.
