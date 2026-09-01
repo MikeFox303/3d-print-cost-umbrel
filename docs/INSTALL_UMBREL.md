@@ -1,6 +1,6 @@
 # Install and verify on umbrelOS
 
-This runbook tracks the **real-device** verification of 3D Print Cost. The current Community App release is `0.10.0-dev.1`.
+This runbook tracks the **real-device** verification of 3D Print Cost. The current Community App release is `0.11.0-dev.1`.
 
 The repository and container are checked in CI for `linux/amd64` and `linux/arm64`. A successful authenticated GitHub Actions push is not enough: umbrelOS must also be able to pull the exact pinned image **anonymously**.
 
@@ -15,13 +15,13 @@ https://github.com/MikeFox303/3d-print-cost-umbrel
 Expected app version:
 
 ```text
-0.10.0-dev.1
+0.11.0-dev.1
 ```
 
 Pinned runtime image:
 
 ```text
-ghcr.io/mikefox303/3d-print-cost-umbrel:0.10.0-dev.1@sha256:e2288a7480576313beaeac82242528a5c4b60c7ffe24b3b2385d93d49be0cc0b
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.11.0-dev.1@sha256:898e165c8d66710959ebf883b23a946dd1ed86c22e5a27318b7781b251f827df
 ```
 
 ## 0. Release installability gate
@@ -42,7 +42,7 @@ Use the Community App Store management UI in umbrelOS and add, or refresh, this 
 https://github.com/MikeFox303/3d-print-cost-umbrel
 ```
 
-Find **3D Print Cost** and confirm the listing shows version `0.10.0-dev.1` before installing/updating.
+Find **3D Print Cost** and confirm the listing shows version `0.11.0-dev.1` before installing/updating.
 
 Do not copy compose files manually into Umbrel and do not add a Home Assistant token through SSH for the normal installation flow.
 
@@ -62,7 +62,7 @@ Expected critical results on Raspberry Pi:
 
 | Check | Expected result |
 |---|---|
-| Version | `0.10.0-dev.1` |
+| Version | `0.11.0-dev.1` |
 | Architecture | ARM64 (`aarch64` or `arm64`) |
 | Persistent data | writable |
 | SQLite | reachable |
@@ -81,21 +81,34 @@ Persistence was already verified on the physical Umbrel host using `0.9.0-dev.1`
 - SQLite/settings value survived both;
 - the temporary setting was then reverted.
 
-For `0.10`, confirm after update that existing settings/data are still present. There is no schema migration in this UI-only release.
+For `0.11`, confirm after update that existing settings/data are still present. There is no schema migration in this UI-only release and the same `${APP_DATA_DIR}/data` mount is retained.
 
-## 5. Verify Bambu Studio import
+## 5. Verify real-device interface
+
+At normal browser zoom on the wide desktop display, verify:
+
+- the content workspace is substantially wider than `0.10`;
+- sidebar/navigation and System Check text are comfortably readable;
+- dashboard cards use more horizontal space without becoming excessively tall;
+- the Materials form and Spoolman panel scale proportionally;
+- the empty local-material database message spans the full available material grid;
+- phone/tablet layout remains compact and usable.
+
+Capture fresh screenshots of Dashboard, Materials and System Check after the update so further tuning is based on the real rendered result.
+
+## 6. Verify Bambu Studio import
 
 Slice a small disposable model in Bambu Studio and import the sliced `.3mf` into the quote workflow.
 
 Confirm that the preview detects plate print time and per-filament grams before saving an order. The importer only reads `Metadata/slice_info.config`; the uploaded file is not retained and Bambuddy is not involved.
 
-## 6. Verify Spoolman boundary
+## 7. Verify Spoolman boundary
 
 Enable/configure Spoolman from the app and read a spool snapshot.
 
 Confirm that 3D Print Cost can read remaining weight/purchase-price data required for a quote. Then confirm that no spool inventory is changed by opening, previewing, saving or completing a test quote. Bambuddy/Spoolman remain responsible for their own material accounting.
 
-## 7. Verify Home Assistant boundary
+## 8. Verify Home Assistant boundary
 
 Open **Home Assistant** inside 3D Print Cost and configure the base URL, energy/power entity and Long-Lived Access Token from the browser.
 
@@ -105,7 +118,7 @@ For a completed disposable order, request the post-print energy statistic and co
 
 Export the app JSON backup and confirm the Home Assistant token value is absent from that backup.
 
-## 8. Real-device verification record
+## 9. Real-device verification record
 
 Current known result:
 
@@ -119,7 +132,8 @@ SQLite reachable: PASS
 Migrations up to date: PASS
 App restart persistence: PASS
 Host reboot persistence: PASS
-0.10.0-dev.1 interface/update validation: PENDING
+0.10.0-dev.1 interface/update validation: PASS — screenshots captured
+0.11.0-dev.1 ultrawide interface validation: PENDING
 Bambu .3mf import: PENDING
 Spoolman read-only test: PENDING
 Home Assistant GET-only test: PENDING
