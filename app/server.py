@@ -112,9 +112,12 @@ async def backup_restore_preview(file: UploadFile = File(...)):
 async def backup_restore_apply(
     file: UploadFile = File(...),
     confirmation_token: str = Form(...),
+    confirmation_phrase: str = Form(...),
     db: Session = Depends(get_db),
 ):
     try:
+        if confirmation_phrase != "RESTORE":
+            raise BackupValidationError("Для восстановления требуется точная фраза RESTORE.")
         raw = await _read_backup_upload(file)
         plan = validate_backup(raw)
         result = apply_restore(db, plan, confirmation_token)
