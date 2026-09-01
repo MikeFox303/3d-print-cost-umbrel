@@ -10,6 +10,9 @@ from .models import Order
 from .pricing import get_or_create_monthly_payback_rate, platform_fee
 
 
+CALIBRATION_MIN_SAMPLE = 5
+
+
 @dataclass
 class BusinessStats:
     completed_total: int
@@ -33,6 +36,19 @@ class BusinessStats:
     projected_months_remaining: float | None
     target_months_remaining: int
     forecast_state: str
+    calibration_exact_orders: int
+    calibration_legacy_orders: int
+    calibration_revenue: float
+    calibration_below_recommended: int
+    calibration_below_minimum: int
+    calibration_average_deviation_uah: float
+    calibration_average_deviation_percent: float
+    calibration_profit_after_payback: float
+    calibration_average_profit_after_payback: float
+    calibration_margin_after_payback: float
+    calibration_realized_payback: float
+    calibration_min_sample: int
+    calibration_state: str
 
     def to_dict(self):
         return asdict(self)
@@ -40,6 +56,14 @@ class BusinessStats:
 
 def _month_diff(start: date, end: date) -> int:
     return max(0, (end.year - start.year) * 12 + end.month - start.month)
+
+
+def _json_snapshot(order: Order) -> dict:
+    try:
+        value = json.loads(order.calc_snapshot_json or "{}")
+    except (json.JSONDecodeError, TypeError):
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def _financial_snapshot(order: Order, settings: dict) -> tuple[float, float]:
@@ -52,10 +76,7 @@ def _financial_snapshot(order: Order, settings: dict) -> tuple[float, float]:
     """
     if not order.final_price:
         return 0.0, 0.0
-    try:
-        snap = json.loads(order.calc_snapshot_json or "{}")
-    except json.JSONDecodeError:
-        snap = {}
+    snap = _json_snapshot(order)
     tax = float(snap.get("tax_rate", settings.get("tax_rate", 0)))
     pct = float(snap.get("platform_percent", 0))
     fixed = float(snap.get("platform_fixed", 0))
@@ -65,6 +86,57 @@ def _financial_snapshot(order: Order, settings: dict) -> tuple[float, float]:
     surplus = max(0.0, float(order.final_price) * (1 - tax) - fee - base_cost)
     after_payback = surplus - float(order.realized_payback or 0)
     return surplus, after_payback
+
+
+def _actual_price_calibration(order: Order) -> dict | None:
+    """Return exact v0.13 actual-price metrics or None for legacy/incomplete data.
+
+    Calibration deliberately refuses to reconstruct old orders from current
+    settings. A row is exact only when the persisted customer-economics snapshot
+    is complete and still agrees with the persisted final customer price.
+    """
+    if order.final_price is None:
+        return None
+    snap = _json_snapshot(order)
+    economics = snap.get("customer_economics")
+    if not isinstance(economics, dict):
+        return None
+    required = {
+        "customer_price",
+        "profit_after_payback",
+        "recommended_gap",
+        "minimum_gap",
+        "meets_recommended_price",
+        "meets_minimum_price",
+    }
+    if not required.issubset(economics):
+        return None
+    if "recommended_price" not in snap:
+        return None
+
+    try:
+        customer_price = float(economics["customer_price"])
+        final_price = float(order.final_price)
+        recommended_price = float(snap["recommended_price"])
+        recommended_gap = float(economics["recommended_gap"])
+        profit_after_payback = float(economics["profit_after_payback"])
+    except (TypeError, ValueError):
+        return None
+
+    if customer_price <= 0 or recommended_price <= 0:
+        return None
+    if abs(customer_price - final_price) >= 0.005:
+        return None
+
+    return {
+        "customer_price": customer_price,
+        "recommended_gap": recommended_gap,
+        "recommended_gap_percent": recommended_gap / recommended_price,
+        "profit_after_payback": profit_after_payback,
+        "below_recommended": not bool(economics["meets_recommended_price"]),
+        "below_minimum": not bool(economics["meets_minimum_price"]),
+        "realized_payback": float(order.realized_payback or 0.0),
+    }
 
 
 def build_business_stats(
@@ -125,6 +197,35 @@ def build_business_stats(
     else:
         forecast_state = "behind"
 
+    calibration_rows = [
+        row
+        for order in completed
+        if (row := _actual_price_calibration(order)) is not None
+    ]
+    exact_count = len(calibration_rows)
+    legacy_count = len(completed) - exact_count
+    calibration_revenue = sum(row["customer_price"] for row in calibration_rows)
+    calibration_profit = sum(row["profit_after_payback"] for row in calibration_rows)
+    calibration_realized_payback = sum(row["realized_payback"] for row in calibration_rows)
+    calibration_below_recommended = sum(1 for row in calibration_rows if row["below_recommended"])
+    calibration_below_minimum = sum(1 for row in calibration_rows if row["below_minimum"])
+    calibration_avg_deviation_uah = (
+        sum(row["recommended_gap"] for row in calibration_rows) / exact_count
+        if exact_count else 0.0
+    )
+    calibration_avg_deviation_percent = (
+        sum(row["recommended_gap_percent"] for row in calibration_rows) / exact_count
+        if exact_count else 0.0
+    )
+    calibration_avg_profit = calibration_profit / exact_count if exact_count else 0.0
+    calibration_margin = calibration_profit / calibration_revenue if calibration_revenue > 0 else 0.0
+    if exact_count == 0:
+        calibration_state = "no_data"
+    elif exact_count < CALIBRATION_MIN_SAMPLE:
+        calibration_state = "small_sample"
+    else:
+        calibration_state = "enough_data"
+
     return BusinessStats(
         completed_total=len(completed),
         completed_month=len(month_orders),
@@ -147,4 +248,17 @@ def build_business_stats(
         projected_months_remaining=projected,
         target_months_remaining=target_remaining,
         forecast_state=forecast_state,
+        calibration_exact_orders=exact_count,
+        calibration_legacy_orders=legacy_count,
+        calibration_revenue=calibration_revenue,
+        calibration_below_recommended=calibration_below_recommended,
+        calibration_below_minimum=calibration_below_minimum,
+        calibration_average_deviation_uah=calibration_avg_deviation_uah,
+        calibration_average_deviation_percent=calibration_avg_deviation_percent,
+        calibration_profit_after_payback=calibration_profit,
+        calibration_average_profit_after_payback=calibration_avg_profit,
+        calibration_margin_after_payback=calibration_margin,
+        calibration_realized_payback=calibration_realized_payback,
+        calibration_min_sample=CALIBRATION_MIN_SAMPLE,
+        calibration_state=calibration_state,
     )
