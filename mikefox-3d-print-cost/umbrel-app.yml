@@ -2,7 +2,7 @@ manifestVersion: 1
 id: mikefox-3d-print-cost
 category: Development
 name: 3D Print Cost
-version: "0.9.0-dev.1"
+version: "0.10.0-dev.1"
 tagline: Fair pre-print quotes and order economics for 3D printing
 description: >-
   A local, browser-first calculator and order ledger for custom 3D-printing services, designed around Bambu Lab X2D workflows.
@@ -13,7 +13,7 @@ description: >-
 
   Spoolman and Home Assistant integrations are read-only. Spoolman/Bambuddy remain responsible for their own filament accounting. Home Assistant is used only for post-print energy statistics and never changes the saved customer quote.
 releaseNotes: >-
-  Adds a browser-safe System Check for first-install diagnostics: application version and architecture, persistent storage writability, SQLite reachability, migration status and integration configuration can be verified without SSH. The diagnostic does not expose secrets and does not contact Spoolman or Home Assistant.
+  Real-device interface refresh based on the first successful Umbrel deployment: a wider and more readable desktop workspace, improved 1440p/4K scaling, larger forms and controls, grouped navigation, a redesigned dashboard with quick actions, and preserved mobile responsiveness. Also clarifies the disabled Spoolman status in System Check. Pricing, SQLite schema and read-only integration boundaries are unchanged.
 developer: MikeFox303
 website: https://github.com/MikeFox303/3d-print-cost-umbrel
 dependencies: []
