@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Проверка системы — 3D Print Cost{% endblock %}
 {% block content %}
-<div class="page-head">
+<div class="system-check-page">
+<div class="page-head system-check-head">
   <div>
     <h1>Проверка системы</h1>
     <p>Безопасная диагностика контейнера, хранилища и локальной базы перед реальной работой.</p>
@@ -67,4 +68,5 @@
   <p>Красный критический пункт означает проблему с persistent storage, SQLite или миграциями. Предупреждение интеграции означает, что она включена, но настроена не полностью.</p>
 </div>
 {% endif %}
+</div>
 {% endblock %}

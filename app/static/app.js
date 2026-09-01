@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupMaterialRows();
   setupQuotePreview();
   setupSpoolmanPanels();
+  setupSettingsForm();
+  setupDetailsActions();
 });
 
 function setupMaterialRows() {
@@ -122,6 +124,41 @@ function setupSpoolmanPanels() {
       insertSpoolmanMaterial(JSON.parse(btn.dataset.spool));
     });
   }
+}
+
+function setupSettingsForm() {
+  const form = document.querySelector('[data-settings-form]');
+  const dirtyBar = document.querySelector('[data-dirty-save]');
+  if (!form || !dirtyBar) return;
+  let dirty = false;
+  const markDirty = () => {
+    if (dirty) return;
+    dirty = true;
+    dirtyBar.hidden = false;
+    form.classList.add('is-dirty');
+  };
+  form.addEventListener('input', markDirty);
+  form.addEventListener('change', markDirty);
+  form.addEventListener('submit', () => {
+    dirtyBar.hidden = true;
+    form.classList.remove('is-dirty');
+  });
+}
+
+function setupDetailsActions() {
+  const mobile = window.matchMedia('(max-width: 900px)').matches;
+  document.querySelectorAll('details[data-mobile-collapsible]').forEach(details => {
+    if (mobile) details.open = details.hasAttribute('data-mobile-open');
+  });
+  document.querySelectorAll('[data-open-details]').forEach(button => {
+    button.addEventListener('click', () => {
+      const target = document.querySelector(button.dataset.openDetails || '');
+      if (!target) return;
+      target.open = true;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.setTimeout(() => target.querySelector('input,select,textarea')?.focus({ preventScroll: true }), 350);
+    });
+  });
 }
 
 async function fetchSpools() {

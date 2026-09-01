@@ -31,7 +31,8 @@
         <strong>{{ '%.1f'|format(stats.payback_percent) }}%</strong>
       </div>
       <div class="progress"><i style="width: {{ stats.payback_percent }}%"></i></div>
-      <p class="hint">Ставка фиксируется на месяц и ограничена настройками. Низкая загрузка не перекладывает весь простой принтера на случайного клиента.</p>
+      <p class="hint">Низкая загрузка не повышает ставку выше заданного лимита — простой принтера не перекладывается на одного клиента.</p>
+      <div class="payback-facts"><span>Сейчас в расчётах: <b>{{ '%.2f'|format(stats.current_rate) }} грн/ч</b></span><a href="/settings">Настроить правило →</a></div>
     </div>
 
     <div class="section-title"><h2>Последние заказы</h2><a href="/orders">Все заказы →</a></div>
