@@ -1,27 +1,29 @@
 manifestVersion: 1
 id: mikefox-3d-print-cost
-category: developer
+category: Development
 name: 3D Print Cost
-version: "0.7.0-dev.1"
-tagline: Calculate fair 3D-print quotes and track order economics
+version: "0.8.0-dev.1"
+tagline: Fair pre-print quotes and order economics for 3D printing
 description: >-
-  A local calculator and order ledger for 3D-printing services, designed for Bambu Lab X2D workflows.
+  A local, browser-first calculator and order ledger for custom 3D-printing services, designed around Bambu Lab X2D workflows.
 
 
-  Calculate a quote before printing using Bambu Studio time and filament usage, import sliced .3mf plate statistics, save order history, track two prices (minimum and recommended), and use a bounded adaptive equipment-payback model.
+  Calculate a quote before printing from Bambu Studio time and filament usage, import sliced .3mf plate statistics, keep historical cost snapshots, track adaptive equipment payback, and export or restore your local business data.
 
 
-  Spoolman and Home Assistant integrations are read-only. This app never deducts filament, does not interfere with Bambuddy, and never calls Home Assistant write/service APIs.
-releaseNotes: "Adds explicit SQLite migration tracking with automatic safety backups for future schema changes and expands financial regression tests for tax, OLX fees/caps, risk and adaptive payback fairness."
+  Spoolman and Home Assistant integrations are read-only. Spoolman/Bambuddy remain responsible for their own filament accounting. Home Assistant is used only for post-print energy statistics and never changes the saved customer quote.
+releaseNotes: >-
+  Improves umbrelOS readiness: Home Assistant credentials can now be configured fully in the browser and are stored outside SQLite/JSON backups; Community App packaging is validated in CI; container tags now follow the application version instead of a stale hard-coded tag.
 developer: MikeFox303
 website: https://github.com/MikeFox303/3d-print-cost-umbrel
 dependencies: []
 repo: https://github.com/MikeFox303/3d-print-cost-umbrel
 support: https://github.com/MikeFox303/3d-print-cost-umbrel/issues
 port: 8585
+icon: https://raw.githubusercontent.com/MikeFox303/3d-print-cost-umbrel/main/assets/icon.svg
 gallery: []
 path: ""
 defaultUsername: ""
 defaultPassword: ""
 submitter: MikeFox303
-submission: ""
+submission: https://github.com/MikeFox303/3d-print-cost-umbrel
