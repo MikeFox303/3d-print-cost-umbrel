@@ -25,6 +25,9 @@ PLATFORM_PREFIX = {
 class PriceBreakdown:
     material: float
     electricity: float
+    electricity_kwh_used: float
+    electricity_tariff: float
+    electricity_source: str
     maintenance: float
     labor: float
     packaging: float
@@ -252,10 +255,14 @@ def calculate_price(
     reserve = float(settings["material_reserve"])
     material = sum(max(0.0, float(m["grams"])) * max(0.0, float(m["price_per_g"])) for m in materials) * (1 + reserve)
 
+    electricity_tariff = float(settings["electricity_tariff"])
     if electricity_kwh is not None and electricity_kwh > 0:
-        electricity = electricity_kwh * float(settings["electricity_tariff"])
+        electricity_kwh_used = float(electricity_kwh)
+        electricity_source = "explicit_kwh"
     else:
-        electricity = hours * float(settings["average_power_w"]) / 1000 * float(settings["electricity_tariff"])
+        electricity_kwh_used = hours * float(settings["average_power_w"]) / 1000.0
+        electricity_source = "average_power"
+    electricity = electricity_kwh_used * electricity_tariff
 
     maintenance = hours * float(settings["maintenance_per_hour"])
     labor = max(manual_minutes / 60 * float(settings["labor_per_hour"]), float(settings["labor_min_per_order"]))
@@ -295,6 +302,9 @@ def calculate_price(
     return PriceBreakdown(
         material=material,
         electricity=electricity,
+        electricity_kwh_used=electricity_kwh_used,
+        electricity_tariff=electricity_tariff,
+        electricity_source=electricity_source,
         maintenance=maintenance,
         labor=labor,
         packaging=packaging,
