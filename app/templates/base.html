@@ -15,6 +15,7 @@
     <nav>
       <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Обзор</a>
       <a href="/orders" class="{% if request.url.path.startswith('/orders') %}active{% endif %}">Заказы</a>
+      <a href="/stats" class="{% if request.url.path.startswith('/stats') %}active{% endif %}">Статистика</a>
       <a href="/filaments" class="{% if request.url.path.startswith('/filaments') %}active{% endif %}">Материалы</a>
       <a href="/settings" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">Настройки</a>
     </nav>

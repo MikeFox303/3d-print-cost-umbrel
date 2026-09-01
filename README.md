@@ -4,7 +4,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.2.0-dev.1`
+`0.3.0-dev.1`
 
 ### Implemented
 
@@ -22,6 +22,8 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - read-only Spoolman spool can be inserted into a quote as a snapshot of price/remaining weight;
 - warning when quoted grams exceed the Spoolman remaining weight snapshot;
 - umbrelOS Community App package skeleton;
+- business statistics page with 90-day load/payback forecast;
+- CSV order export and full JSON backup export;
 - CI tests on pull requests;
 - multi-architecture GHCR image build for `amd64` and `arm64` after tests pass.
 

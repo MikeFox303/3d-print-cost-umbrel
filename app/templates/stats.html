@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Статистика — 3D Print Cost{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Статистика</h1><p>Фактические выполненные заказы и темп окупаемости.</p></div><div class="row"><a class="button" href="/exports/orders.csv">CSV заказов</a><a class="button" href="/exports/backup.json">Backup JSON</a></div></div>
+<div class="grid stats">
+  <div class="card metric"><span>Заказов в этом месяце</span><strong>{{ stats.completed_month }}</strong></div>
+  <div class="card metric"><span>Выручка месяца</span><strong>{{ '%.0f'|format(stats.revenue_month) }} грн</strong></div>
+  <div class="card metric"><span>Коммерческих часов</span><strong>{{ '%.1f'|format(stats.commercial_hours_month) }} ч</strong></div>
+  <div class="card metric"><span>Средний заказ</span><strong>{{ '%.0f'|format(stats.average_order_month) }} грн</strong></div>
+</div>
+<div class="two-col">
+<section class="card">
+  <div class="row between"><div><h2>Окупаемость оборудования</h2><p>{{ '%.0f'|format(stats.recovered_total) }} / {{ '%.0f'|format(stats.equipment_cost) }} грн</p></div><strong>{{ '%.1f'|format(stats.payback_percent) }}%</strong></div>
+  <div class="progress"><i style="width:{{ stats.payback_percent }}%"></i></div>
+  <div class="breakdown">
+    <div><span>Осталось вернуть</span><b>{{ '%.0f'|format(stats.equipment_remaining) }} грн</b></div>
+    <div><span>Текущая ставка</span><b>{{ '%.2f'|format(stats.current_payback_rate) }} грн/ч</b></div>
+    <div><span>Зачтено в этом месяце</span><b>{{ '%.0f'|format(stats.realized_payback_month) }} грн</b></div>
+  </div>
+</section>
+<section class="card">
+  <h2>Прогноз</h2>
+  {% if stats.forecast_state == 'paid' %}<div class="forecast good">Оборудование окуплено.</div>
+  {% elif stats.forecast_state == 'no_data' %}<div class="forecast neutral">Пока недостаточно завершённых заказов для прогноза.</div>
+  {% elif stats.forecast_state == 'on_track' %}<div class="forecast good">По текущему темпу цель выглядит достижимой.</div>
+  {% else %}<div class="forecast warn">Текущий темп ниже цели. Цена не повышается безгранично — простой не перекладывается на одного клиента.</div>{% endif %}
+  <div class="breakdown">
+    <div><span>Целевых месяцев осталось</span><b>{{ stats.target_months_remaining }}</b></div>
+    <div><span>Прогноз до окупаемости</span><b>{% if stats.projected_months_remaining is not none %}{{ '%.1f'|format(stats.projected_months_remaining) }} мес{% else %}—{% endif %}</b></div>
+    <div><span>90-дневная загрузка → мес</span><b>{{ '%.1f'|format(stats.rolling_hours_monthly_equivalent) }} ч/мес</b></div>
+    <div><span>90-дневный вклад → мес</span><b>{{ '%.0f'|format(stats.rolling_payback_monthly_equivalent) }} грн/мес</b></div>
+  </div>
+</section>
+</div>
+<div class="two-col">
+<section class="card"><h2>Финансы месяца</h2><div class="breakdown"><div><span>Операционный остаток после прямых расходов/налога/комиссий</span><b>{{ '%.0f'|format(stats.operating_surplus_month) }} грн</b></div><div><span>Направлено на оборудование</span><b>{{ '%.0f'|format(stats.realized_payback_month) }} грн</b></div><div class="total"><span>Осталось после зачёта окупаемости</span><b>{{ '%.0f'|format(stats.profit_after_payback_month) }} грн</b></div></div></section>
+<section class="card"><h2>О данных</h2><p>В статистику дохода попадают только заказы со статусом «Выполнен». Отменённые, черновики и удалённые заказы не влияют на прогноз.</p><p class="hint">Прогноз использует скользящее окно {{ stats.rolling_days }} дней, поэтому один слабый или сильный месяц не вызывает резкого скачка цены.</p></section>
+</div>
+{% endblock %}

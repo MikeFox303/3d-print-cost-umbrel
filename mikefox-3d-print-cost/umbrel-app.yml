@@ -2,7 +2,7 @@ manifestVersion: 1
 id: mikefox-3d-print-cost
 category: developer
 name: 3D Print Cost
-version: "0.2.0-dev.1"
+version: "0.3.0-dev.1"
 tagline: Calculate fair 3D-print quotes and track order economics
 description: >-
   A local calculator and order ledger for 3D-printing services, designed for Bambu Lab X2D workflows.

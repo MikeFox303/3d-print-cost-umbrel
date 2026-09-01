@@ -42,7 +42,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/3d-print-cost-umbrel
           tags: |
-            type=raw,value=0.2.0-dev.1,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=0.3.0-dev.1,enable=${{ github.ref == 'refs/heads/main' }}
             type=ref,event=tag
             type=sha
       - uses: docker/build-push-action@v6
