@@ -93,7 +93,8 @@ def _actual_price_calibration(order: Order) -> dict | None:
 
     Calibration deliberately refuses to reconstruct old orders from current
     settings. A row is exact only when the persisted customer-economics snapshot
-    is complete and still agrees with the persisted final customer price.
+    is complete, internally consistent, and still agrees with the persisted
+    final customer price.
     """
     if order.final_price is None:
         return None
@@ -111,21 +112,31 @@ def _actual_price_calibration(order: Order) -> dict | None:
     }
     if not required.issubset(economics):
         return None
-    if "recommended_price" not in snap:
+    if "recommended_price" not in snap or "minimum_price" not in snap:
         return None
 
     try:
         customer_price = float(economics["customer_price"])
         final_price = float(order.final_price)
         recommended_price = float(snap["recommended_price"])
+        minimum_price = float(snap["minimum_price"])
         recommended_gap = float(economics["recommended_gap"])
+        minimum_gap = float(economics["minimum_gap"])
         profit_after_payback = float(economics["profit_after_payback"])
     except (TypeError, ValueError):
         return None
 
-    if customer_price <= 0 or recommended_price <= 0:
+    if customer_price <= 0 or recommended_price <= 0 or minimum_price < 0:
         return None
     if abs(customer_price - final_price) >= 0.005:
+        return None
+    if abs((customer_price - recommended_price) - recommended_gap) >= 0.005:
+        return None
+    if abs((customer_price - minimum_price) - minimum_gap) >= 0.005:
+        return None
+    if bool(economics["meets_recommended_price"]) != (customer_price >= recommended_price):
+        return None
+    if bool(economics["meets_minimum_price"]) != (customer_price >= minimum_price):
         return None
 
     return {
@@ -133,8 +144,8 @@ def _actual_price_calibration(order: Order) -> dict | None:
         "recommended_gap": recommended_gap,
         "recommended_gap_percent": recommended_gap / recommended_price,
         "profit_after_payback": profit_after_payback,
-        "below_recommended": not bool(economics["meets_recommended_price"]),
-        "below_minimum": not bool(economics["meets_minimum_price"]),
+        "below_recommended": customer_price < recommended_price,
+        "below_minimum": customer_price < minimum_price,
         "realized_payback": float(order.realized_payback or 0.0),
     }
 
