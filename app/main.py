@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from . import __version__
+from .analytics import build_business_stats
 from .db import Base, engine, get_db
 from .integrations import ReadOnlySpoolmanClient
 from .models import Filament, MonthlyPaybackRate, Order, OrderMaterial
@@ -299,6 +302,106 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "current_rate": current_rate,
     }
     return templates.TemplateResponse(request, "dashboard.html", ctx(request, orders=orders, stats=stats))
+
+
+@app.get("/stats", response_class=HTMLResponse)
+def stats_page(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings(db)
+    stats = build_business_stats(db, settings)
+    return templates.TemplateResponse(request, "stats.html", ctx(request, stats=stats))
+
+
+@app.get("/api/stats")
+def stats_api(db: Session = Depends(get_db)):
+    settings = get_settings(db)
+    return build_business_stats(db, settings).to_dict()
+
+
+def _iso(value):
+    return value.isoformat() if value is not None else None
+
+
+@app.get("/exports/orders.csv")
+def export_orders_csv(db: Session = Depends(get_db)):
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id", "created_at", "completed_at", "status", "title", "client",
+        "print_hours", "materials", "production_cost", "minimum_price",
+        "recommended_price", "final_price", "planned_payback", "realized_payback",
+    ])
+    orders = db.query(Order).filter(Order.deleted_at.is_(None)).order_by(Order.id).all()
+    for order in orders:
+        materials = "; ".join(
+            f"{m.name_snapshot}: {m.grams:.1f} g @ {m.price_per_g_snapshot:.4f}"
+            for m in order.materials
+        )
+        writer.writerow([
+            order.id, _iso(order.created_at), _iso(order.completed_at), order.status,
+            order.title, order.client, round(order.print_minutes / 60.0, 3), materials,
+            round(order.production_cost or 0, 2), round(order.minimum_price or 0, 2),
+            round(order.recommended_price or 0, 2),
+            round(order.final_price, 2) if order.final_price is not None else "",
+            round(order.planned_payback or 0, 2), round(order.realized_payback or 0, 2),
+        ])
+    payload = "\ufeff" + output.getvalue()
+    headers = {"Content-Disposition": 'attachment; filename="3d-print-orders.csv"'}
+    return StreamingResponse(iter([payload]), media_type="text/csv; charset=utf-8", headers=headers)
+
+
+@app.get("/exports/backup.json")
+def export_backup_json(db: Session = Depends(get_db)):
+    settings = get_settings(db)
+    filaments = db.query(Filament).order_by(Filament.id).all()
+    orders = db.query(Order).order_by(Order.id).all()
+    monthly_rates = db.query(MonthlyPaybackRate).order_by(MonthlyPaybackRate.month).all()
+    data = {
+        "schema": "3d-print-cost-backup-v1",
+        "app_version": __version__,
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "settings": settings,
+        "filaments": [
+            {
+                "id": f.id, "name": f.name, "brand": f.brand, "material": f.material,
+                "color": f.color, "weight_g": f.weight_g, "purchase_price": f.purchase_price,
+                "archived": f.archived, "created_at": _iso(f.created_at),
+            } for f in filaments
+        ],
+        "orders": [
+            {
+                "id": o.id, "title": o.title, "client": o.client, "status": o.status,
+                "print_minutes": o.print_minutes, "manual_minutes": o.manual_minutes,
+                "packaging_cost": o.packaging_cost, "complexity": o.complexity,
+                "platform": o.platform, "electricity_kwh": o.electricity_kwh,
+                "target_margin": o.target_margin, "final_price": o.final_price,
+                "production_cost": o.production_cost, "minimum_price": o.minimum_price,
+                "recommended_price": o.recommended_price, "planned_payback": o.planned_payback,
+                "realized_payback": o.realized_payback, "expected_profit": o.expected_profit,
+                "payback_rate_snapshot": o.payback_rate_snapshot,
+                "calc_snapshot_json": o.calc_snapshot_json, "archived": o.archived,
+                "deleted_at": _iso(o.deleted_at), "created_at": _iso(o.created_at),
+                "updated_at": _iso(o.updated_at), "completed_at": _iso(o.completed_at),
+                "materials": [
+                    {
+                        "filament_id": m.filament_id, "source": m.source,
+                        "source_ref": m.source_ref, "name_snapshot": m.name_snapshot,
+                        "material_snapshot": m.material_snapshot, "grams": m.grams,
+                        "price_per_g_snapshot": m.price_per_g_snapshot,
+                        "remaining_g_snapshot": m.remaining_g_snapshot,
+                    } for m in o.materials
+                ],
+            } for o in orders
+        ],
+        "monthly_payback_rates": [
+            {
+                "month": r.month, "rate": r.rate, "reference_hours": r.reference_hours,
+                "remaining_equipment": r.remaining_equipment,
+                "recovered_before": r.recovered_before, "created_at": _iso(r.created_at),
+            } for r in monthly_rates
+        ],
+    }
+    headers = {"Content-Disposition": 'attachment; filename="3d-print-cost-backup.json"'}
+    return JSONResponse(data, headers=headers)
 
 
 @app.get("/orders", response_class=HTMLResponse)
