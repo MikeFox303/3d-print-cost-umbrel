@@ -18,6 +18,7 @@
       <a href="/stats" class="{% if request.url.path.startswith('/stats') %}active{% endif %}">Статистика</a>
       <a href="/filaments" class="{% if request.url.path.startswith('/filaments') %}active{% endif %}">Материалы</a>
       <a href="/settings" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">Настройки</a>
+      <a href="/home-assistant" class="{% if request.url.path.startswith('/home-assistant') %}active{% endif %}">Home Assistant</a>
       <a href="/backup/restore" class="{% if request.url.path.startswith('/backup') %}active{% endif %}">Backup / Restore</a>
     </nav>
     <div class="side-note">v{{ version }}<br>Внешние интеграции — read only</div>
