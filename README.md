@@ -23,7 +23,8 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - Home Assistant **GET-only** post-print energy statistics;
 - Home Assistant token configured from the browser and stored separately from SQLite/JSON backups;
 - CI regression tests and multi-architecture (`amd64`, `arm64`) container builds;
-- Community App package checks for umbrelOS.
+- Community App package checks for umbrelOS;
+- immutable digest pinning for the Umbrel runtime image.
 
 ### External-system boundary
 
@@ -66,9 +67,13 @@ The repository contains a Community App Store package:
 - `mikefox-3d-print-cost/umbrel-app.yml`
 - `mikefox-3d-print-cost/docker-compose.yml`
 
-`v0.8` fixes an earlier CI bug where the container publication workflow still used a hard-coded `0.3.0-dev.1` tag. The workflow now reads `app.__version__`, builds both amd64 and arm64 on pull requests, and publishes the exact app version after merge to `main`.
+The `0.8.0-dev.1` runtime image was successfully published for both `amd64` and `arm64` and is pinned in the Umbrel compose to its immutable multi-arch digest:
 
-The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. See [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the device verification checklist and the post-publication digest-pinning step.
+```text
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1@sha256:06304d09ffe55b52fa74e58431fd90d29a31e42723a27f8a1e97d76d95353c7f
+```
+
+The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. See [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the remaining device verification checklist.
 
 ## Pricing principles
 

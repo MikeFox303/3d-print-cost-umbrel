@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    # Package/docs-only merges must not republish an unchanged runtime tag.
+    # Tag pushes are not subject to path filtering.
+    paths:
+      - 'app/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - '.dockerignore'
   pull_request:
     branches: [main]
   workflow_dispatch:

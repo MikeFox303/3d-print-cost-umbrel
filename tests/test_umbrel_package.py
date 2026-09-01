@@ -1,7 +1,9 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "mikefox-3d-print-cost"
+EXPECTED_IMAGE_DIGEST = "sha256:06304d09ffe55b52fa74e58431fd90d29a31e42723a27f8a1e97d76d95353c7f"
 
 
 def read(path: Path) -> str:
@@ -40,7 +42,9 @@ def test_umbrel_manifest_is_browser_first_community_package():
     assert "icon: https://raw.githubusercontent.com/MikeFox303/3d-print-cost-umbrel/main/assets/icon.svg" in manifest
 
 
-def test_umbrel_runtime_image_is_version_tagged():
+def test_umbrel_runtime_image_is_versioned_and_digest_pinned():
     compose = read(PACKAGE / "docker-compose.yml")
-    assert "ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1" in compose
+    expected = f"ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1@{EXPECTED_IMAGE_DIGEST}"
+    assert expected in compose
+    assert re.search(r"@sha256:[0-9a-f]{64}\b", compose)
     assert ":latest" not in compose

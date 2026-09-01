@@ -13,7 +13,7 @@ The Community App package follows the current browser-app pattern:
 - the web process listens internally on port 8080 and has no raw host port in the Umbrel package;
 - persistent application state is under `${APP_DATA_DIR}/data`;
 - no privileged mode, host networking, Docker socket or device access is requested;
-- runtime image is version-tagged rather than `latest`;
+- runtime image is version-tagged **and digest-pinned** rather than `latest`;
 - GitHub Actions builds both `linux/amd64` and `linux/arm64` after automated tests;
 - normal Home Assistant setup is browser-first: URL, entity id and token can be entered in the app UI, with no SSH/Docker Compose editing required.
 
@@ -21,17 +21,29 @@ The Home Assistant token is kept in `${DATA_DIR}/secrets/home-assistant-token`, 
 
 ## Container publication
 
-Before v0.8 the workflow accidentally kept publishing the raw tag `0.3.0-dev.1` even after the application version advanced. v0.8 fixes this: the workflow reads `app.__version__`, performs an amd64+arm64 build on pull requests without pushing, and publishes the exact application version on `main`.
+Before v0.8 the workflow accidentally kept publishing the raw tag `0.3.0-dev.1` even after the application version advanced. v0.8 fixes this: the workflow reads `app.__version__`, performs an amd64+arm64 build on pull requests without pushing, and publishes the exact application version on `main` when runtime files change. Package/docs-only merges are path-filtered so they do not mutate an already-published version tag. Explicit `v*` tag pushes can still publish release images.
 
-## Digest pinning
+## Published v0.8 image
 
-The initial v0.8 merge must publish `ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1` before its multi-architecture digest exists. Immediately after that build, the Umbrel package will be updated in a small follow-up change to use:
+The successful main build published both `linux/amd64` and `linux/arm64` under:
 
 ```text
-ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1@sha256:<multiarch-digest>
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1
 ```
 
-This avoids pretending a digest is known before publication.
+The immutable multi-architecture digest is:
+
+```text
+sha256:06304d09ffe55b52fa74e58431fd90d29a31e42723a27f8a1e97d76d95353c7f
+```
+
+The Umbrel package is pinned to the combined reference:
+
+```text
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1@sha256:06304d09ffe55b52fa74e58431fd90d29a31e42723a27f8a1e97d76d95353c7f
+```
+
+This means an installation resolves the exact tested v0.8 multi-arch manifest instead of whatever a mutable tag might point to later.
 
 ## What is NOT verified yet
 
@@ -50,6 +62,6 @@ The remaining runtime checklist on an actual Umbrel device is:
 9. configure Home Assistant in the browser and verify only energy history/state is read;
 10. export a JSON backup and verify the Home Assistant token is absent;
 11. inspect app logs for migration/startup errors;
-12. confirm the running architecture/image digest is the pinned multi-arch image.
+12. confirm the running architecture/image digest matches the pinned multi-arch digest above.
 
 Only after these steps should Raspberry Pi 5 / arm64 runtime verification be marked complete.
