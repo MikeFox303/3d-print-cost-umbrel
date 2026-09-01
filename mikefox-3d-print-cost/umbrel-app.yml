@@ -2,7 +2,7 @@ manifestVersion: 1
 id: mikefox-3d-print-cost
 category: developer
 name: 3D Print Cost
-version: "0.6.0-dev.1"
+version: "0.7.0-dev.1"
 tagline: Calculate fair 3D-print quotes and track order economics
 description: >-
   A local calculator and order ledger for 3D-printing services, designed for Bambu Lab X2D workflows.
@@ -12,7 +12,7 @@ description: >-
 
 
   Spoolman and Home Assistant integrations are read-only. This app never deducts filament, does not interfere with Bambuddy, and never calls Home Assistant write/service APIs.
-releaseNotes: "Adds Home Assistant GET-only post-print energy statistics from cumulative energy or power-history sensors. The HA token is environment-only and is never stored in SQLite or JSON backups."
+releaseNotes: "Adds explicit SQLite migration tracking with automatic safety backups for future schema changes and expands financial regression tests for tax, OLX fees/caps, risk and adaptive payback fairness."
 developer: MikeFox303
 website: https://github.com/MikeFox303/3d-print-cost-umbrel
 dependencies: []
