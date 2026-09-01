@@ -4,7 +4,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.4.0-dev.1`
+`0.5.0-dev.1`
 
 ### Implemented
 
@@ -25,6 +25,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - umbrelOS Community App package skeleton;
 - business statistics page with 90-day load/payback forecast;
 - CSV order export and full JSON backup export;
+- validated JSON backup restore with dry-run preview, exact-file fingerprint, explicit confirmation and automatic pre-restore safety backup;
 - CI tests on pull requests;
 - multi-architecture GHCR image build for `amd64` and `arm64` after tests pass.
 
@@ -32,7 +33,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 - **No Spoolman writes or material deductions.** Spoolman/Bambuddy continue to manage inventory independently.
 - **No Bambuddy integration for quote calculation.** Quotes are calculated before printing from Bambu Studio data.
-- Home Assistant energy history import and JSON restore remain planned. Until then a quote uses configured average power or manually entered kWh.
+- Home Assistant energy history import remains planned. Until then a quote uses configured average power or manually entered kWh.
 
 ## Local Docker run
 
@@ -63,6 +64,17 @@ The Umbrel package uses the GHCR image produced by GitHub Actions. The web UI is
 5. Review minimum/recommended prices and the cost breakdown.
 6. Set the customer price and save the order.
 7. After completion, the final customer price determines how much payback contribution was actually realized.
+
+## Backup / restore workflow
+
+1. Download the current JSON backup from the Backup / Restore page.
+2. To restore, select a `3d-print-cost-backup-v1` file and run the dry-run preview.
+3. The app validates the whole structure and internal ID references without changing the database.
+4. Apply is bound to that exact file by SHA-256 fingerprint and also requires typing `RESTORE`.
+5. Immediately before replacement, the current local database state is exported automatically to a timestamped safety backup under persistent `DATA_DIR` storage.
+6. Settings, local filaments, orders/material snapshots and monthly payback rates are then replaced in one database transaction. A failure rolls the transaction back.
+
+Restore never contacts the printer, Bambu Cloud, Bambuddy, Spoolman or Home Assistant.
 
 ## Pricing principles
 
