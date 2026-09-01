@@ -54,6 +54,12 @@ def test_connectivity_helper_rechecks_on_network_and_foreground_changes():
     assert "window.setInterval" in js
 
 
+def test_connectivity_helper_ignores_stale_aborted_probe_results():
+    js = (STATIC / "connectivity.js").read_text(encoding="utf-8")
+    assert js.count("if (activeController !== controller) return;") >= 2
+    assert "if (activeController === controller) activeController = null;" in js
+
+
 def test_connectivity_helper_does_not_add_offline_business_storage():
     js = (STATIC / "connectivity.js").read_text(encoding="utf-8")
     forbidden = (
