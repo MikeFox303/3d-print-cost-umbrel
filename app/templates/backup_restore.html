@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Резервная копия — 3D Print Cost{% endblock %}
+{% block content %}
+<style>
+.restore-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.restore-zone{border:1px dashed var(--line,#334155);border-radius:14px;padding:18px}.restore-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.restore-counts div{padding:10px;border-radius:10px;background:rgba(148,163,184,.08)}.restore-counts strong{display:block;font-size:1.2rem}.danger-box{border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.08);padding:14px;border-radius:12px}.fingerprint{font-family:monospace;word-break:break-all;font-size:.8rem}.restore-ok{padding:14px;border-radius:12px;background:rgba(34,197,94,.12)}@media(max-width:800px){.restore-grid{grid-template-columns:1fr}}
+</style>
+<div class="page-head">
+  <div><h1>Резервная копия</h1><p>Экспорт и безопасное восстановление локальной базы 3D Print Cost.</p></div>
+  <a class="button" href="/exports/backup.json">Скачать текущий backup</a>
+</div>
+<div class="restore-grid">
+  <section class="card form-section">
+    <h2>1. Проверить backup</h2>
+    <p>Поддерживается только собственный формат <code>3d-print-cost-backup-v1</code>. Сначала выполняется dry-run: база данных не изменяется.</p>
+    <div class="restore-zone">
+      <label>JSON backup<input id="backupFile" type="file" accept="application/json,.json"></label>
+      <button class="button primary wide" id="previewRestore" type="button">Проверить файл</button>
+    </div>
+    <div id="restorePreview" class="hint">Максимальный размер — 25 MiB.</div>
+  </section>
+
+  <section class="card form-section">
+    <h2>2. Восстановить</h2>
+    <div class="danger-box">
+      <strong>Replace-all restore</strong>
+      <p>После подтверждения текущие настройки, локальные материалы, заказы и месячные ставки будут заменены содержимым backup.</p>
+      <p>Перед изменением приложение автоматически сохранит текущее состояние в отдельный safety-backup на диске Umbrel.</p>
+    </div>
+    <div id="restoreConfirm" hidden>
+      <p>Fingerprint проверенного файла:</p>
+      <div id="restoreFingerprint" class="fingerprint"></div>
+      <label>Для подтверждения введите <strong>RESTORE</strong><input id="restorePhrase" autocomplete="off" placeholder="RESTORE"></label>
+      <button class="button primary wide" id="applyRestore" type="button" disabled>Восстановить из этого backup</button>
+    </div>
+    <div id="restoreResult"></div>
+  </section>
+</div>
+<div class="card" style="margin-top:16px">
+  <h2>Что restore не делает</h2>
+  <p>Восстановление работает только с локальной SQLite-базой 3D Print Cost. Оно не обращается к принтеру, Bambu Cloud, Bambuddy, Spoolman или Home Assistant и ничего там не изменяет.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const fileInput = document.getElementById('backupFile');
+  const previewButton = document.getElementById('previewRestore');
+  const preview = document.getElementById('restorePreview');
+  const confirmBox = document.getElementById('restoreConfirm');
+  const fingerprint = document.getElementById('restoreFingerprint');
+  const phrase = document.getElementById('restorePhrase');
+  const applyButton = document.getElementById('applyRestore');
+  const result = document.getElementById('restoreResult');
+  let token = '';
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  function invalidate(){ token=''; confirmBox.hidden=true; applyButton.disabled=true; phrase.value=''; result.innerHTML=''; }
+  fileInput.addEventListener('change', invalidate);
+  phrase.addEventListener('input', () => { applyButton.disabled = !(token && phrase.value === 'RESTORE'); });
+
+  previewButton.addEventListener('click', async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) { preview.innerHTML='<div class="warning">Выберите JSON backup.</div>'; return; }
+    invalidate();
+    preview.textContent='Проверяю структуру и ссылки…';
+    const body = new FormData(); body.append('file', file);
+    try {
+      const response = await fetch('/api/backup/restore/preview', {method:'POST', body});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Ошибка проверки backup');
+      token = data.confirmation_token;
+      const c = data.counts;
+      const warnings = (data.warnings || []).map(x => `<div class="warning">${esc(x)}</div>`).join('');
+      preview.innerHTML = `<div class="restore-ok"><strong>✓ Backup прошёл проверку</strong></div><div class="restore-counts"><div><strong>${c.orders}</strong>заказов</div><div><strong>${c.order_materials}</strong>строк материалов</div><div><strong>${c.filaments}</strong>локальных катушек</div><div><strong>${c.monthly_payback_rates}</strong>месячных ставок</div></div>${warnings}`;
+      fingerprint.textContent=data.fingerprint;
+      confirmBox.hidden=false;
+    } catch (error) {
+      preview.innerHTML=`<div class="warning">${esc(error.message)}</div>`;
+    }
+  });
+
+  applyButton.addEventListener('click', async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file || !token || phrase.value !== 'RESTORE') return;
+    applyButton.disabled=true;
+    result.innerHTML='<p>Создаю safety-backup и выполняю транзакционное восстановление…</p>';
+    const body = new FormData();
+    body.append('file', file);
+    body.append('confirmation_token', token);
+    body.append('confirmation_phrase', phrase.value);
+    try {
+      const response = await fetch('/api/backup/restore/apply', {method:'POST', body});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Ошибка восстановления');
+      result.innerHTML=`<div class="restore-ok"><strong>✓ Восстановление завершено</strong><p>Safety-backup прежнего состояния: <code>${esc(data.safety_backup)}</code></p><p><a class="button small" href="/">Открыть восстановленную базу</a></p></div>`;
+      confirmBox.hidden=true;
+    } catch (error) {
+      result.innerHTML=`<div class="warning">${esc(error.message)}</div>`;
+      applyButton.disabled=false;
+    }
+  });
+})();
+</script>
+{% endblock %}
