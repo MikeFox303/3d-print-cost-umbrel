@@ -17,6 +17,7 @@ from .backup_restore import (
     validate_backup,
 )
 from .db import get_db
+from .diagnostics import build_system_check
 from .integrations import HomeAssistantReadOnlyError, ReadOnlyHomeAssistantClient
 from .secrets import (
     clear_home_assistant_token,
@@ -141,6 +142,21 @@ async def backup_restore_apply(
         )
     finally:
         await file.close()
+
+
+@app.get("/system", response_class=HTMLResponse)
+def system_check_page(request: Request, db: Session = Depends(get_db)):
+    report = build_system_check(get_settings(db))
+    return core.templates.TemplateResponse(
+        request,
+        "system_check.html",
+        core.ctx(request, report=report),
+    )
+
+
+@app.get("/api/system-check")
+def system_check_api(db: Session = Depends(get_db)):
+    return build_system_check(get_settings(db))
 
 
 @app.get("/home-assistant", response_class=HTMLResponse)
