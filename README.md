@@ -4,7 +4,7 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.5.0-dev.1`
+`0.6.0-dev.1`
 
 ### Implemented
 
@@ -22,6 +22,8 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - Spoolman **read-only** client (`GET` only) for viewing current spool data;
 - read-only Spoolman spool can be inserted into a quote as a snapshot of price/remaining weight;
 - warning when quoted grams exceed the Spoolman remaining weight snapshot;
+- Home Assistant **GET-only** post-print energy statistics from cumulative energy or power-history sensors;
+- Home Assistant token kept outside SQLite/JSON backups in `HOME_ASSISTANT_TOKEN`;
 - umbrelOS Community App package skeleton;
 - business statistics page with 90-day load/payback forecast;
 - CSV order export and full JSON backup export;
@@ -33,11 +35,12 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 - **No Spoolman writes or material deductions.** Spoolman/Bambuddy continue to manage inventory independently.
 - **No Bambuddy integration for quote calculation.** Quotes are calculated before printing from Bambu Studio data.
-- Home Assistant energy history import remains planned. Until then a quote uses configured average power or manually entered kWh.
+- Home Assistant measurements are post-print statistics only; they do not rewrite an order's saved quote/snapshot.
 
 ## Local Docker run
 
 ```bash
+export HOME_ASSISTANT_TOKEN="your-long-lived-token"   # optional
 docker compose up --build
 ```
 
@@ -106,7 +109,11 @@ Not used by this app. It can continue working with Spoolman independently.
 
 ### Home Assistant
 
-Planned as a GET-only source of actual energy statistics after a print. It will never be required for a pre-print quote.
+Read only. Configure the base URL and one sensor entity in the app, then pass a Long-Lived Access Token to the container as `HOME_ASSISTANT_TOKEN`.
+
+For an energy sensor (`kWh`/`Wh`) the app calculates the change during the print window and handles meter resets. For a power sensor (`W`/`kW`) it integrates the power history over time. The window is derived from the completed order: `completed_at - print_minutes` through `completed_at`.
+
+The result is displayed on the completed order as post-print statistics, including actual kWh, estimated kWh, difference and actual electricity cost. It is intentionally **not persisted into the order**, so the historical pre-print financial snapshot remains unchanged.
 
 ## Development
 

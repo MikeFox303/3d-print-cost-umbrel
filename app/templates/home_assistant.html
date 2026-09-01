@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Home Assistant — 3D Print Cost{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Home Assistant</h1><p>Только чтение фактической энергии после завершения печати.</p></div><span class="badge readonly">GET ONLY</span></div>
+<div class="two-col">
+<section class="card form-section">
+  <h2>Подключение</h2>
+  <form method="post" action="/home-assistant">
+    <label class="check"><input type="checkbox" name="home_assistant_enabled" {% if settings.home_assistant_enabled %}checked{% endif %}> Включить чтение Home Assistant</label>
+    <label>URL Home Assistant<input name="home_assistant_url" value="{{ settings.home_assistant_url }}" placeholder="http://homeassistant.local:8123"></label>
+    <label>Сенсор энергии или мощности<input name="home_assistant_energy_entity" value="{{ settings.home_assistant_energy_entity }}" placeholder="sensor.x2d_energy"></label>
+    <p class="hint">Поддерживаются единицы <code>kWh</code>, <code>Wh</code>, <code>W</code> и <code>kW</code>. Для накопительного energy-сенсора берётся дельта; для power-сенсора мощность интегрируется по истории.</p>
+    <button class="button primary wide">Сохранить</button>
+  </form>
+</section>
+<section class="card form-section">
+  <h2>Токен</h2>
+  {% if token_configured %}<div class="forecast good">HOME_ASSISTANT_TOKEN задан на сервере.</div>{% else %}<div class="forecast warn">HOME_ASSISTANT_TOKEN пока не задан.</div>{% endif %}
+  <p>Long-Lived Access Token намеренно <strong>не хранится в SQLite</strong>, не показывается в интерфейсе и не попадает в JSON backup.</p>
+  <p class="hint">Передайте его контейнеру как переменную окружения <code>HOME_ASSISTANT_TOKEN</code>. После изменения переменной контейнер нужно перезапустить.</p>
+  <h3>Как определяется окно</h3>
+  <p>Для выполненного заказа конец окна — время завершения заказа, начало — это время завершения минус длительность печати из Bambu Studio.</p>
+  <p class="hint">Результат показывается как post-print статистика и не изменяет сохранённую цену или финансовый snapshot заказа.</p>
+</section>
+</div>
+<div class="card">
+  <h2>Граница доступа</h2>
+  <p>Клиент Home Assistant содержит только HTTP GET. Он читает состояние выбранного сенсора и его историю. Сервисы, состояния, автоматизации и настройки Home Assistant не изменяются.</p>
+</div>
+{% endblock %}

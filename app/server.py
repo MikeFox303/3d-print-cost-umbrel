@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
+from datetime import timedelta
 from pathlib import Path
 
 from fastapi import Depends, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy.orm import Session
@@ -16,6 +18,8 @@ from .backup_restore import (
     validate_backup,
 )
 from .db import get_db
+from .integrations import HomeAssistantReadOnlyError, ReadOnlyHomeAssistantClient
+from .settings import get_settings, set_setting
 from .three_mf import ThreeMFImportError, import_bambu_3mf
 
 app = core.app
@@ -51,12 +55,13 @@ else:
     _validate_quote_inputs = core._validate_quote_inputs
 
 
-# Prefer the v0.4 order form while retaining every other template from the core app.
-override_templates = BASE_DIR / "templates_v04"
-if override_templates.exists():
-    core.templates.env.loader = ChoiceLoader(
-        [FileSystemLoader(str(override_templates)), core.templates.env.loader]
-    )
+# Layer small UI overrides instead of rewriting the stable core route module.
+loaders = []
+for directory in (BASE_DIR / "templates_v06", BASE_DIR / "templates_v04"):
+    if directory.exists():
+        loaders.append(FileSystemLoader(str(directory)))
+if loaders:
+    core.templates.env.loader = ChoiceLoader([*loaders, core.templates.env.loader])
 
 
 if not any(getattr(route, "path", None) == "/v04-static" for route in app.routes):
@@ -132,3 +137,83 @@ async def backup_restore_apply(
         )
     finally:
         await file.close()
+
+
+@app.get("/home-assistant", response_class=HTMLResponse)
+def home_assistant_page(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings(db)
+    return core.templates.TemplateResponse(
+        request,
+        "home_assistant.html",
+        core.ctx(
+            request,
+            settings=settings,
+            token_configured=bool(os.getenv("HOME_ASSISTANT_TOKEN", "").strip()),
+        ),
+    )
+
+
+@app.post("/home-assistant")
+async def home_assistant_save(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    enabled = form.get("home_assistant_enabled") == "on"
+    base_url = str(form.get("home_assistant_url") or "").strip().rstrip("/")
+    entity_id = str(form.get("home_assistant_energy_entity") or "").strip()
+    if base_url and not base_url.startswith(("http://", "https://")):
+        raise core.HTTPException(422, "Home Assistant URL должен начинаться с http:// или https://")
+    if entity_id and "." not in entity_id:
+        raise core.HTTPException(422, "Entity ID должен иметь вид sensor.example")
+    set_setting(db, "home_assistant_enabled", enabled)
+    set_setting(db, "home_assistant_url", base_url)
+    set_setting(db, "home_assistant_energy_entity", entity_id)
+    return RedirectResponse("/home-assistant", status_code=303)
+
+
+@app.get("/api/orders/{order_id}/home-assistant-energy")
+async def order_home_assistant_energy(order_id: int, db: Session = Depends(get_db)):
+    order = db.get(core.Order, order_id)
+    if not order or order.deleted_at is not None:
+        raise core.HTTPException(404)
+    if order.status != "completed" or order.completed_at is None:
+        raise core.HTTPException(409, "Фактическая энергия доступна после завершения заказа.")
+    if order.print_minutes <= 0:
+        raise core.HTTPException(409, "В заказе нет длительности печати.")
+
+    settings = get_settings(db)
+    if not settings.get("home_assistant_enabled"):
+        raise core.HTTPException(409, "Интеграция Home Assistant выключена.")
+    token = os.getenv("HOME_ASSISTANT_TOKEN", "").strip()
+    if not token:
+        raise core.HTTPException(503, "На сервере не задан HOME_ASSISTANT_TOKEN.")
+
+    base_url = str(settings.get("home_assistant_url") or "").strip()
+    entity_id = str(settings.get("home_assistant_energy_entity") or "").strip()
+    start = order.completed_at - timedelta(minutes=order.print_minutes)
+    end = order.completed_at
+    try:
+        measured = await ReadOnlyHomeAssistantClient(base_url, token).measure_energy(entity_id, start, end)
+    except HomeAssistantReadOnlyError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=422)
+    except Exception:
+        return JSONResponse(
+            {"error": "Не удалось прочитать историю Home Assistant. Проверьте URL, токен, entity_id и доступность HA."},
+            status_code=502,
+        )
+
+    estimated_kwh = (
+        float(order.electricity_kwh)
+        if order.electricity_kwh is not None
+        else (order.print_minutes / 60.0) * float(settings.get("average_power_w", 0)) / 1000.0
+    )
+    actual_kwh = float(measured["kwh"])
+    tariff = float(settings.get("electricity_tariff", 0))
+    return {
+        **measured,
+        "order_id": order.id,
+        "window_source": "completed_at - print_minutes",
+        "estimated_kwh": estimated_kwh,
+        "difference_kwh": actual_kwh - estimated_kwh,
+        "actual_cost": actual_kwh * tariff,
+        "tariff": tariff,
+        "persisted": False,
+    }

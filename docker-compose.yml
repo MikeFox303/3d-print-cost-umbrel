@@ -8,6 +8,7 @@ services:
     environment:
       DATA_DIR: /data
       PORT: 8080
+      HOME_ASSISTANT_TOKEN: ${HOME_ASSISTANT_TOKEN:-}
     volumes:
       - app-data:/data
 

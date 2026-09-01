@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from urllib.parse import urljoin
+from datetime import datetime, timezone
+from urllib.parse import quote, urljoin
+
 import httpx
 
 
@@ -60,3 +62,149 @@ class ReadOnlySpoolmanClient:
             response.raise_for_status()
             data = response.json()
         return [self.normalize_spool(spool) for spool in data]
+
+
+class HomeAssistantReadOnlyError(ValueError):
+    pass
+
+
+class ReadOnlyHomeAssistantClient:
+    """GET-only Home Assistant client for post-print energy statistics.
+
+    The token is supplied by the caller (normally HOME_ASSISTANT_TOKEN) and is never
+    persisted by this client. There are deliberately no write methods.
+    """
+
+    ENERGY_UNITS = {"kWh", "Wh"}
+    POWER_UNITS = {"W", "kW"}
+
+    def __init__(self, base_url: str, token: str, timeout: float = 10.0):
+        self.base_url = base_url.rstrip("/") + "/"
+        self.token = token.strip()
+        self.timeout = timeout
+        if not self.token:
+            raise HomeAssistantReadOnlyError("HOME_ASSISTANT_TOKEN не задан.")
+
+    @property
+    def headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
+
+    @staticmethod
+    def _utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    @staticmethod
+    def _parse_time(raw: str) -> datetime:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+    @staticmethod
+    def _numeric_samples(history: list[dict]) -> list[tuple[datetime, float]]:
+        samples: list[tuple[datetime, float]] = []
+        for item in history:
+            raw_state = item.get("state")
+            raw_time = item.get("last_changed") or item.get("last_updated")
+            if raw_state in (None, "unknown", "unavailable", "") or not raw_time:
+                continue
+            try:
+                value = float(raw_state)
+                moment = ReadOnlyHomeAssistantClient._parse_time(raw_time)
+            except (TypeError, ValueError):
+                continue
+            samples.append((moment, value))
+        samples.sort(key=lambda row: row[0])
+        return samples
+
+    @staticmethod
+    def energy_from_samples(
+        samples: list[tuple[datetime, float]],
+        unit: str,
+        start: datetime,
+        end: datetime,
+    ) -> float:
+        if len(samples) < 1:
+            raise HomeAssistantReadOnlyError("Home Assistant не вернул числовых значений сенсора за период печати.")
+        start = ReadOnlyHomeAssistantClient._utc(start)
+        end = ReadOnlyHomeAssistantClient._utc(end)
+        if end <= start:
+            raise HomeAssistantReadOnlyError("Некорректное окно времени печати.")
+
+        if unit in ReadOnlyHomeAssistantClient.ENERGY_UNITS:
+            values = [value for _, value in samples]
+            if len(values) < 2:
+                raise HomeAssistantReadOnlyError("Для energy-сенсора нужно минимум два значения истории.")
+            total = 0.0
+            previous = values[0]
+            for current in values[1:]:
+                if current >= previous:
+                    total += current - previous
+                else:
+                    # total_increasing sensors may reset (device reboot/daily meter).
+                    total += max(current, 0.0)
+                previous = current
+            return total / 1000.0 if unit == "Wh" else total
+
+        if unit in ReadOnlyHomeAssistantClient.POWER_UNITS:
+            factor = 1000.0 if unit == "kW" else 1.0
+            points = [(max(start, min(end, t)), value * factor) for t, value in samples if t <= end]
+            if not points:
+                raise HomeAssistantReadOnlyError("Нет power-данных внутри окна печати.")
+            # Collapse duplicate/clamped timestamps, keeping the newest state.
+            collapsed: list[tuple[datetime, float]] = []
+            for point in points:
+                if collapsed and point[0] == collapsed[-1][0]:
+                    collapsed[-1] = point
+                else:
+                    collapsed.append(point)
+            if collapsed[0][0] > start:
+                collapsed.insert(0, (start, collapsed[0][1]))
+            if collapsed[-1][0] < end:
+                collapsed.append((end, collapsed[-1][1]))
+            watt_hours = 0.0
+            for (t0, p0), (t1, p1) in zip(collapsed, collapsed[1:]):
+                hours = max(0.0, (t1 - t0).total_seconds() / 3600.0)
+                watt_hours += ((p0 + p1) / 2.0) * hours
+            return watt_hours / 1000.0
+
+        raise HomeAssistantReadOnlyError(
+            f"Неподдерживаемая единица сенсора {unit!r}. Нужна kWh, Wh, W или kW."
+        )
+
+    async def _get(self, path: str, *, params: dict | None = None):
+        url = urljoin(self.base_url, path)
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
+            response = await client.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+
+    async def measure_energy(self, entity_id: str, start: datetime, end: datetime) -> dict:
+        entity_id = entity_id.strip()
+        if not entity_id or "." not in entity_id:
+            raise HomeAssistantReadOnlyError("Не задан корректный Home Assistant entity_id.")
+        state = await self._get("api/states/" + quote(entity_id, safe="."))
+        unit = str((state.get("attributes") or {}).get("unit_of_measurement") or "")
+
+        start_utc = self._utc(start)
+        end_utc = self._utc(end)
+        history = await self._get(
+            "api/history/period/" + quote(start_utc.isoformat(), safe=""),
+            params={
+                "filter_entity_id": entity_id,
+                "end_time": end_utc.isoformat(),
+                "minimal_response": "true",
+                "no_attributes": "true",
+            },
+        )
+        rows = history[0] if isinstance(history, list) and history and isinstance(history[0], list) else []
+        samples = self._numeric_samples(rows)
+        kwh = self.energy_from_samples(samples, unit, start_utc, end_utc)
+        return {
+            "entity_id": entity_id,
+            "sensor_unit": unit,
+            "mode": "energy_delta" if unit in self.ENERGY_UNITS else "power_integral",
+            "start": start_utc.isoformat(),
+            "end": end_utc.isoformat(),
+            "samples": len(samples),
+            "kwh": max(0.0, kwh),
+        }
