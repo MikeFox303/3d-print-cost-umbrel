@@ -126,3 +126,18 @@ def test_v013_energy_reconciliation_ui_contract():
     assert "electricity_kwh_used" in pricing
     assert "electricity_tariff" in pricing
     assert "electricity_source" in pricing
+
+
+def test_v013_pricing_calibration_statistics_ui_contract():
+    root = Path(__file__).resolve().parents[1]
+    stats = (root / "app" / "templates" / "stats.html").read_text()
+    analytics = (root / "app" / "analytics.py").read_text()
+
+    assert "Ценовая дисциплина" in stats
+    assert "SNAPSHOT ONLY" in stats
+    assert "Ниже рекомендуемой" in stats
+    assert "Фактическая маржа после окупаемости" in stats
+    assert "calibration_exact_orders" in analytics
+    assert "calibration_legacy_orders" in analytics
+    assert "customer_economics" in analytics
+    assert "CALIBRATION_MIN_SAMPLE" in analytics
