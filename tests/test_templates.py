@@ -64,14 +64,16 @@ def test_v012_phone_real_device_polish_present():
 
 def test_v013_3mf_local_filament_matching_ui_contract():
     root = Path(__file__).resolve().parents[1]
-    importer = (root / "app" / "v04_static" / "three_mf.js").read_text()
+    importer = (root / "app" / "static" / "three_mf.js").read_text()
     app_js = (root / "app" / "static" / "app.js").read_text()
-    server = (root / "app" / "server.py").read_text()
+    order_form = (root / "app" / "templates" / "order_form.html").read_text()
+    imports_router = (root / "app" / "routers" / "imports.py").read_text()
 
     assert "auto_local_filament_id" in importer
     assert "local_candidates" in importer
     assert "автоматически не угадываю" in importer
     assert "window.refreshRemainingWarnings" in app_js
     assert "window.invalidatePreview" in app_js
-    assert '"local_matching": "read_only_local_price_database"' in server
-    assert "match_local_filaments" in server
+    assert '/static/three_mf.js' in order_form
+    assert '"local_matching": "read_only_local_price_database"' in imports_router
+    assert "match_local_filaments" in imports_router
