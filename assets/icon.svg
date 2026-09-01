@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="3D Print Cost">
+  <rect width="256" height="256" fill="#0b1220"/>
+  <g fill="none" stroke="#58a6ff" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M52 72 112 40l60 32-60 34z"/>
+    <path d="M52 72v66l60 34 60-34V72"/>
+    <path d="M112 106v66"/>
+  </g>
+  <path d="M128 154h62l28 28-50 50-40-40z" fill="#7ee787"/>
+  <circle cx="151" cy="177" r="8" fill="#0b1220"/>
+  <path d="M159 201h31M171 188v26" fill="none" stroke="#0b1220" stroke-width="8" stroke-linecap="round"/>
+</svg>

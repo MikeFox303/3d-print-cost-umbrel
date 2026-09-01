@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -19,6 +18,11 @@ from .backup_restore import (
 )
 from .db import get_db
 from .integrations import HomeAssistantReadOnlyError, ReadOnlyHomeAssistantClient
+from .secrets import (
+    clear_home_assistant_token,
+    get_home_assistant_token,
+    save_home_assistant_token,
+)
 from .settings import get_settings, set_setting
 from .three_mf import ThreeMFImportError, import_bambu_3mf
 
@@ -142,13 +146,15 @@ async def backup_restore_apply(
 @app.get("/home-assistant", response_class=HTMLResponse)
 def home_assistant_page(request: Request, db: Session = Depends(get_db)):
     settings = get_settings(db)
+    token, token_source = get_home_assistant_token()
     return core.templates.TemplateResponse(
         request,
         "home_assistant.html",
         core.ctx(
             request,
             settings=settings,
-            token_configured=bool(os.getenv("HOME_ASSISTANT_TOKEN", "").strip()),
+            token_configured=bool(token),
+            token_source=token_source,
         ),
     )
 
@@ -159,10 +165,22 @@ async def home_assistant_save(request: Request, db: Session = Depends(get_db)):
     enabled = form.get("home_assistant_enabled") == "on"
     base_url = str(form.get("home_assistant_url") or "").strip().rstrip("/")
     entity_id = str(form.get("home_assistant_energy_entity") or "").strip()
+    new_token = str(form.get("home_assistant_token") or "").strip()
+    clear_token = form.get("clear_home_assistant_token") == "on"
+
     if base_url and not base_url.startswith(("http://", "https://")):
         raise core.HTTPException(422, "Home Assistant URL должен начинаться с http:// или https://")
     if entity_id and "." not in entity_id:
         raise core.HTTPException(422, "Entity ID должен иметь вид sensor.example")
+
+    # Token writes are local to this app. The value is never stored in SQLite and
+    # is never rendered back to the browser. An environment token, when present,
+    # remains an optional advanced override for non-Umbrel deployments.
+    if new_token:
+        save_home_assistant_token(new_token)
+    elif clear_token:
+        clear_home_assistant_token()
+
     set_setting(db, "home_assistant_enabled", enabled)
     set_setting(db, "home_assistant_url", base_url)
     set_setting(db, "home_assistant_energy_entity", entity_id)
@@ -182,9 +200,9 @@ async def order_home_assistant_energy(order_id: int, db: Session = Depends(get_d
     settings = get_settings(db)
     if not settings.get("home_assistant_enabled"):
         raise core.HTTPException(409, "Интеграция Home Assistant выключена.")
-    token = os.getenv("HOME_ASSISTANT_TOKEN", "").strip()
+    token, _token_source = get_home_assistant_token()
     if not token:
-        raise core.HTTPException(503, "На сервере не задан HOME_ASSISTANT_TOKEN.")
+        raise core.HTTPException(503, "Токен Home Assistant не настроен.")
 
     base_url = str(settings.get("home_assistant_url") or "").strip()
     entity_id = str(settings.get("home_assistant_energy_entity") or "").strip()
