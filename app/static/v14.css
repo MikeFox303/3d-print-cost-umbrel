@@ -1,0 +1,18 @@
+/* v0.14 safe standalone/PWA shell. Dynamic business data remains network-only. */
+
+@media (max-width:900px) and (display-mode: standalone) {
+  html, body { min-height: 100dvh; }
+
+  /* Extend the sticky header behind the iPhone status area while keeping its
+     controls below the notch/Dynamic Island. */
+  main { padding-top: calc(16px + env(safe-area-inset-top)); }
+  .mobile-head {
+    margin-top: calc(-16px - env(safe-area-inset-top));
+    padding-top: calc(12px + env(safe-area-inset-top));
+    min-height: calc(64px + env(safe-area-inset-top));
+  }
+}
+
+@media (max-width:480px) and (display-mode: standalone) {
+  .mobile-head { min-height: calc(62px + env(safe-area-inset-top)); }
+}
