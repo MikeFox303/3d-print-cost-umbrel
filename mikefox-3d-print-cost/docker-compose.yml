@@ -7,7 +7,7 @@ services:
       APP_PORT: 8080
 
   web:
-    image: ghcr.io/mikefox303/3d-print-cost-umbrel:0.10.0-dev.1@sha256:e2288a7480576313beaeac82242528a5c4b60c7ffe24b3b2385d93d49be0cc0b
+    image: ghcr.io/mikefox303/3d-print-cost-umbrel:0.11.0-dev.1@sha256:898e165c8d66710959ebf883b23a946dd1ed86c22e5a27318b7781b251f827df
     restart: on-failure
     stop_grace_period: 30s
     init: true
