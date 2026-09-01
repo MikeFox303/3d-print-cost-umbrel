@@ -77,3 +77,18 @@ def test_v013_3mf_local_filament_matching_ui_contract():
     assert '/static/three_mf.js' in order_form
     assert '"local_matching": "read_only_local_price_database"' in imports_router
     assert "match_local_filaments" in imports_router
+
+
+def test_v013_actual_customer_price_economics_ui_contract():
+    root = Path(__file__).resolve().parents[1]
+    app_js = (root / "app" / "static" / "app.js").read_text()
+    order_form = (root / "app" / "templates" / "order_form.html").read_text()
+    order_detail = (root / "app" / "templates" / "order_detail.html").read_text()
+    economics_router = (root / "app" / "routers" / "economics.py").read_text()
+
+    assert "/api/quotes/economics-preview" in app_js
+    assert "previewCustomerEconomics" in order_form
+    assert "Прибыль после окупаемости" in app_js
+    assert "/customer-economics" in order_detail
+    assert "saved_financial_snapshot" in economics_router
+    assert "evaluate_customer_price" in economics_router
