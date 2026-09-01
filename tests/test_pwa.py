@@ -2,7 +2,10 @@ import json
 import struct
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
 from app import __version__
+from app.server import app
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,3 +73,17 @@ def test_business_data_has_no_offline_service_worker_fallback():
     assert "serviceWorker" not in app_js
     assert not (STATIC / "sw.js").exists()
     assert not (STATIC / "service-worker.js").exists()
+
+
+def test_dynamic_routes_are_no_store_but_static_manifest_is_not_forced_no_store():
+    client = TestClient(app)
+
+    health = client.get("/healthz")
+    assert health.status_code == 200
+    assert health.headers.get("cache-control") == "no-store"
+    assert health.headers.get("pragma") == "no-cache"
+
+    manifest = client.get("/static/manifest.webmanifest")
+    assert manifest.status_code == 200
+    assert manifest.headers.get("cache-control") != "no-store"
+    assert manifest.json()["display"] == "standalone"
