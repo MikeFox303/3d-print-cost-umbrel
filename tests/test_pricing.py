@@ -29,12 +29,35 @@ def test_reference_petg_order_has_two_prices():
     assert 15 <= b.payback_rate <= 30
 
 
-def test_explicit_energy_overrides_average_power():
+def test_explicit_energy_overrides_average_power_and_is_snapshotted():
     db = make_db()
-    b = calculate_price(db, settings(), print_minutes=600, manual_minutes=0, packaging_cost=0,
+    s = settings()
+    s["electricity_tariff"] = 4.32
+    s["average_power_w"] = 999.0
+    b = calculate_price(db, s, print_minutes=600, manual_minutes=0, packaging_cost=0,
         complexity="simple", platform="direct", target_margin=0.35,
         materials=[], electricity_kwh=1.0)
     assert round(b.electricity, 2) == 4.32
+    assert b.electricity_kwh_used == 1.0
+    assert b.electricity_tariff == 4.32
+    assert b.electricity_source == "explicit_kwh"
+    snap = b.to_dict()
+    assert snap["electricity_kwh_used"] == 1.0
+    assert snap["electricity_tariff"] == 4.32
+    assert snap["electricity_source"] == "explicit_kwh"
+
+
+def test_average_power_energy_basis_is_snapshotted():
+    db = make_db()
+    s = settings()
+    s["electricity_tariff"] = 4.32
+    s["average_power_w"] = 180.0
+    b = calculate_price(db, s, print_minutes=120, manual_minutes=0, packaging_cost=0,
+        complexity="simple", platform="direct", target_margin=0.35,
+        materials=[], electricity_kwh=None)
+    assert b.electricity_kwh_used == 0.36
+    assert b.electricity == 0.36 * 4.32
+    assert b.electricity_source == "average_power"
 
 
 def test_low_load_is_capped_for_customer_fairness():
