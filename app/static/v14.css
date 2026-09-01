@@ -1,5 +1,19 @@
 /* v0.14 safe standalone/PWA shell. Dynamic business data remains network-only. */
 
+.connection-banner {
+  position: fixed;
+  z-index: 2000;
+  inset: 0 0 auto;
+  padding: calc(10px + env(safe-area-inset-top)) 18px 10px;
+  border-bottom: 1px solid #7a3131;
+  background: rgba(61, 20, 25, .97);
+  color: var(--text);
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.connection-banner[hidden] { display: none; }
+.connection-banner strong { color: #ffb4ae; }
+
 @media (max-width:900px) and (display-mode: standalone) {
   html, body { min-height: 100dvh; }
 
