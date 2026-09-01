@@ -7,20 +7,27 @@
   <title>{% block title %}3D Print Cost{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
   <link rel="stylesheet" href="/static/v02.css">
+  <link rel="stylesheet" href="/static/v10.css">
 </head>
 <body>
 <div class="shell">
   <aside class="sidebar">
     <div class="brand"><div class="brand-mark">3D</div><div><strong>Print Cost</strong><small>X2D / Umbrel</small></div></div>
     <nav>
-      <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Обзор</a>
-      <a href="/orders" class="{% if request.url.path.startswith('/orders') %}active{% endif %}">Заказы</a>
-      <a href="/stats" class="{% if request.url.path.startswith('/stats') %}active{% endif %}">Статистика</a>
-      <a href="/filaments" class="{% if request.url.path.startswith('/filaments') %}active{% endif %}">Материалы</a>
-      <a href="/settings" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">Настройки</a>
-      <a href="/home-assistant" class="{% if request.url.path.startswith('/home-assistant') %}active{% endif %}">Home Assistant</a>
-      <a href="/system" class="{% if request.url.path.startswith('/system') %}active{% endif %}">Проверка системы</a>
-      <a href="/backup/restore" class="{% if request.url.path.startswith('/backup') %}active{% endif %}">Backup / Restore</a>
+      <div class="nav-group">
+        <span class="nav-caption">Работа</span>
+        <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Обзор</a>
+        <a href="/orders" class="{% if request.url.path.startswith('/orders') %}active{% endif %}">Заказы</a>
+        <a href="/stats" class="{% if request.url.path.startswith('/stats') %}active{% endif %}">Статистика</a>
+        <a href="/filaments" class="{% if request.url.path.startswith('/filaments') %}active{% endif %}">Материалы</a>
+      </div>
+      <div class="nav-group">
+        <span class="nav-caption">Система</span>
+        <a href="/settings" class="{% if request.url.path.startswith('/settings') %}active{% endif %}">Настройки</a>
+        <a href="/home-assistant" class="{% if request.url.path.startswith('/home-assistant') %}active{% endif %}">Home Assistant</a>
+        <a href="/system" class="{% if request.url.path.startswith('/system') %}active{% endif %}">Проверка системы</a>
+        <a href="/backup/restore" class="{% if request.url.path.startswith('/backup') %}active{% endif %}">Backup / Restore</a>
+      </div>
     </nav>
     <div class="side-note">v{{ version }}<br>Внешние интеграции — read only</div>
   </aside>

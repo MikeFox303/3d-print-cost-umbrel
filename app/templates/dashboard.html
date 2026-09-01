@@ -1,27 +1,72 @@
 {% extends "base.html" %}
 {% block title %}Обзор — 3D Print Cost{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Обзор</h1><p>Стоимость заказов и окупаемость оборудования.</p></div><a class="button primary" href="/orders/new">+ Новый заказ</a></div>
-<div class="grid stats">
-  <div class="card metric"><span>Выполнено заказов</span><strong>{{ stats.orders }}</strong></div>
-  <div class="card metric"><span>Выручка</span><strong>{{ '%.0f'|format(stats.revenue) }} грн</strong></div>
-  <div class="card metric"><span>Вклад в окупаемость</span><strong>{{ '%.0f'|format(stats.recovered) }} грн</strong></div>
-  <div class="card metric"><span>Тариф окупаемости</span><strong>{{ '%.2f'|format(stats.current_rate) }} грн/ч</strong></div>
+<div class="page-head dashboard-head">
+  <div>
+    <span class="eyebrow">3D PRINT COST</span>
+    <h1>Обзор</h1>
+    <p>Стоимость заказов, фактическая выручка и мягкая окупаемость оборудования.</p>
+  </div>
+  <div class="head-actions">
+    <a class="button" href="/stats">Статистика</a>
+    <a class="button primary" href="/orders/new">+ Новый заказ</a>
+  </div>
 </div>
-<div class="card payback-card">
-  <div class="row between"><div><h2>Окупаемость X2D + AMS</h2><p>{{ '%.0f'|format(stats.recovered) }} / {{ '%.0f'|format(stats.equipment_cost) }} грн</p></div><strong>{{ '%.1f'|format(stats.payback_percent) }}%</strong></div>
-  <div class="progress"><i style="width: {{ stats.payback_percent }}%"></i></div>
-  <p class="hint">Ставка фиксируется на месяц и ограничена настройками, чтобы редкие клиенты не оплачивали простой принтера.</p>
-</div>
-<div class="section-title"><h2>Последние заказы</h2><a href="/orders">Все заказы →</a></div>
-<div class="order-list">
-{% for order in orders %}
-<a class="card order-row" href="/orders/{{ order.id }}">
-  <div><strong>#{{ '%04d'|format(order.id) }} · {{ order.title }}</strong><span>{{ (order.print_minutes // 60) }}ч {{ order.print_minutes % 60 }}м · {{ status_labels.get(order.status, order.status) }}</span></div>
-  <div class="money">{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</div>
-</a>
-{% else %}
-<div class="card empty"><h3>Заказов пока нет</h3><p>Создайте первый расчёт по данным Bambu Studio.</p><a class="button primary" href="/orders/new">Создать заказ</a></div>
-{% endfor %}
+
+<div class="dashboard-layout">
+  <section class="dashboard-primary">
+    <div class="grid stats">
+      <div class="card metric metric-accent"><span>Выполнено заказов</span><strong>{{ stats.orders }}</strong></div>
+      <div class="card metric metric-accent"><span>Выручка</span><strong>{{ '%.0f'|format(stats.revenue) }} грн</strong></div>
+      <div class="card metric metric-accent"><span>Вклад в окупаемость</span><strong>{{ '%.0f'|format(stats.recovered) }} грн</strong></div>
+      <div class="card metric metric-accent"><span>Тариф окупаемости</span><strong>{{ '%.2f'|format(stats.current_rate) }} грн/ч</strong></div>
+    </div>
+
+    <div class="card payback-card">
+      <div class="row between">
+        <div>
+          <h2>Окупаемость X2D + AMS</h2>
+          <p>{{ '%.0f'|format(stats.recovered) }} / {{ '%.0f'|format(stats.equipment_cost) }} грн</p>
+        </div>
+        <strong>{{ '%.1f'|format(stats.payback_percent) }}%</strong>
+      </div>
+      <div class="progress"><i style="width: {{ stats.payback_percent }}%"></i></div>
+      <p class="hint">Ставка фиксируется на месяц и ограничена настройками. Низкая загрузка не перекладывает весь простой принтера на случайного клиента.</p>
+    </div>
+
+    <div class="section-title"><h2>Последние заказы</h2><a href="/orders">Все заказы →</a></div>
+    <div class="order-list">
+    {% for order in orders %}
+      <a class="card order-row" href="/orders/{{ order.id }}">
+        <div><strong>#{{ '%04d'|format(order.id) }} · {{ order.title }}</strong><span>{{ (order.print_minutes // 60) }}ч {{ order.print_minutes % 60 }}м · {{ status_labels.get(order.status, order.status) }}</span></div>
+        <div class="money">{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</div>
+      </a>
+    {% else %}
+      <div class="card empty"><h3>Заказов пока нет</h3><p>Первый расчёт можно сделать вручную по данным Bambu Studio или импортировать sliced .3mf.</p><a class="button primary" href="/orders/new">Создать заказ</a></div>
+    {% endfor %}
+    </div>
+  </section>
+
+  <aside class="dashboard-secondary">
+    <div class="card quick-card">
+      <h2>Быстрые действия</h2>
+      <div class="quick-actions">
+        <a class="quick-action" href="/orders/new"><span class="quick-icon">+</span><span class="quick-copy"><strong>Новый расчёт</strong><span>Bambu Studio / .3mf</span></span><span class="quick-arrow">›</span></a>
+        <a class="quick-action" href="/filaments"><span class="quick-icon">F</span><span class="quick-copy"><strong>Материалы</strong><span>Катушки, цены и Spoolman</span></span><span class="quick-arrow">›</span></a>
+        <a class="quick-action" href="/stats"><span class="quick-icon">Σ</span><span class="quick-copy"><strong>Статистика</strong><span>Выручка и окупаемость</span></span><span class="quick-arrow">›</span></a>
+        <a class="quick-action" href="/system"><span class="quick-icon">✓</span><span class="quick-copy"><strong>Проверка системы</strong><span>Umbrel, SQLite и storage</span></span><span class="quick-arrow">›</span></a>
+      </div>
+    </div>
+
+    <div class="card workflow-card">
+      <h2>Как считается заказ</h2>
+      <div class="workflow-list">
+        <div class="workflow-step"><b>1</b><span>Slice в Bambu Studio<small>Время и расход материалов до печати</small></span></div>
+        <div class="workflow-step"><b>2</b><span>Выбор катушек<small>Фактическая закупочная цена и остаток</small></span></div>
+        <div class="workflow-step"><b>3</b><span>Финансовый расчёт<small>Себестоимость, риск, маржа и окупаемость</small></span></div>
+        <div class="workflow-step"><b>4</b><span>Цена клиенту<small>История сохраняет snapshot расчёта</small></span></div>
+      </div>
+    </div>
+  </aside>
 </div>
 {% endblock %}
