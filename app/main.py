@@ -20,6 +20,7 @@ from .models import Filament, MonthlyPaybackRate, Order, OrderMaterial
 from .pricing import (
     calculate_price,
     compute_realized_payback,
+    evaluate_customer_price,
     get_or_create_monthly_payback_rate,
     round_customer_price,
 )
@@ -262,9 +263,12 @@ def _apply_order(order: Order, data: dict, breakdown) -> None:
     order.minimum_price = breakdown.minimum_price
     order.recommended_price = breakdown.recommended_price
     order.planned_payback = breakdown.planned_payback
-    order.expected_profit = breakdown.expected_profit
+    customer_economics = evaluate_customer_price(breakdown, order.final_price)
+    order.expected_profit = customer_economics.profit_after_payback
     order.payback_rate_snapshot = breakdown.payback_rate
-    order.calc_snapshot_json = json.dumps(breakdown.to_dict(), ensure_ascii=False)
+    snapshot = breakdown.to_dict()
+    snapshot["customer_economics"] = customer_economics.to_dict()
+    order.calc_snapshot_json = json.dumps(snapshot, ensure_ascii=False)
 
 
 def _replace_materials(db: Session, order: Order, materials: list[dict]) -> None:

@@ -7,6 +7,10 @@
   <div class="card price-card recommended"><span>Рекомендуемая</span><strong>{{ '%.0f'|format(order.recommended_price) }} грн</strong><small>С вкладом в адаптивную окупаемость</small></div>
   <div class="card price-card final"><span>Цена клиенту</span><strong>{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</strong><small>Зафиксирована в заказе</small></div>
 </div>
+<section class="card" style="margin-bottom:16px">
+  <div class="row between"><div><h2>Экономика цены клиенту</h2><p>Считается по сохранённому финансовому snapshot заказа, а не по текущим ценам материалов.</p></div><span class="badge readonly">SNAPSHOT</span></div>
+  <div id="customerEconomicsResult" class="hint">Считаю налог, комиссию, прибыль и вклад в окупаемость…</div>
+</section>
 <div class="two-col">
 <section class="card"><h2>Расшифровка</h2><div class="breakdown">
 <div><span>Материал</span><b>{{ '%.2f'|format(snap.get('material',0)) }} грн</b></div><div><span>Электричество</span><b>{{ '%.2f'|format(snap.get('electricity',0)) }} грн</b></div><div><span>Обслуживание</span><b>{{ '%.2f'|format(snap.get('maintenance',0)) }} грн</b></div><div><span>Ручной труд</span><b>{{ '%.2f'|format(snap.get('labor',0)) }} грн</b></div><div><span>Упаковка</span><b>{{ '%.2f'|format(snap.get('packaging',0)) }} грн</b></div><div><span>Риск</span><b>{{ '%.1f'|format(snap.get('risk_rate',0)*100) }}%</b></div><div class="total"><span>Производственная себестоимость</span><b>{{ '%.2f'|format(order.production_cost) }} грн</b></div><div><span>Окупаемость</span><b>{{ '%.2f'|format(order.planned_payback) }} грн ({{'%.2f'|format(order.payback_rate_snapshot)}}/ч)</b></div></div></section>
@@ -25,6 +29,19 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script>
+(() => {
+ const box=document.getElementById('customerEconomicsResult'); if(!box)return;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+ fetch('/api/orders/{{order.id}}/customer-economics').then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||'Ошибка расчёта');return data;}).then(data=>{
+  const e=data.customer_economics||{};
+  const state=e.meets_recommended_price?'Цена покрывает рекомендуемый уровень':(e.meets_minimum_price?'Цена ниже рекомендуемой — окупаемость сокращена':'Цена ниже минимальной устойчивой');
+  const stateClass=e.meets_recommended_price?'notice':(e.meets_minimum_price?'warning':'warning');
+  const realized=data.completed?`<div><span>Фактически зачтено при завершении</span><b>${Number(data.realized_payback||0).toFixed(2)} грн</b></div>`:'';
+  box.innerHTML=`<div class="${stateClass}">${esc(state)}</div><div class="breakdown" style="margin-top:12px"><div><span>Цена клиенту</span><b>${Number(e.customer_price||0).toFixed(2)} грн</b></div><div><span>Налог</span><b>${Number(e.tax||0).toFixed(2)} грн</b></div><div><span>Комиссия площадки</span><b>${Number(e.platform_fee||0).toFixed(2)} грн</b></div><div><span>После налога и комиссии</span><b>${Number(e.net_revenue||0).toFixed(2)} грн</b></div><div><span>После базовых затрат</span><b>${Number(e.operating_result||0).toFixed(2)} грн</b></div><div><span>Вклад в окупаемость по этой цене</span><b>${Number(e.payback_contribution||0).toFixed(2)} грн</b></div>${realized}<div class="total"><span>Прибыль после окупаемости</span><b>${Number(e.profit_after_payback||0).toFixed(2)} грн · ${(Number(e.profit_margin_after_payback||0)*100).toFixed(1)}%</b></div></div>${data.snapshot_has_v013_share?'':'<p class="hint">Старый snapshot: доля сверхприбыли в окупаемость не была сохранена в заказе; используется совместимый fallback.</p>'}`;
+ }).catch(error=>{box.innerHTML=`<div class="warning">${esc(error.message)}</div>`;});
+})();
+</script>
 {% if order.status == 'completed' %}
 <script>
 (() => {
