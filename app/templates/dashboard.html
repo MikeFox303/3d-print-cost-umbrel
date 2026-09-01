@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Обзор — 3D Print Cost{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Обзор</h1><p>Стоимость заказов и окупаемость оборудования.</p></div><a class="button primary" href="/orders/new">+ Новый заказ</a></div>
+<div class="grid stats">
+  <div class="card metric"><span>Выполнено заказов</span><strong>{{ stats.orders }}</strong></div>
+  <div class="card metric"><span>Выручка</span><strong>{{ '%.0f'|format(stats.revenue) }} грн</strong></div>
+  <div class="card metric"><span>Вклад в окупаемость</span><strong>{{ '%.0f'|format(stats.recovered) }} грн</strong></div>
+  <div class="card metric"><span>Тариф окупаемости</span><strong>{{ '%.2f'|format(stats.current_rate) }} грн/ч</strong></div>
+</div>
+<div class="card payback-card">
+  <div class="row between"><div><h2>Окупаемость X2D + AMS</h2><p>{{ '%.0f'|format(stats.recovered) }} / {{ '%.0f'|format(stats.equipment_cost) }} грн</p></div><strong>{{ '%.1f'|format(stats.payback_percent) }}%</strong></div>
+  <div class="progress"><i style="width: {{ stats.payback_percent }}%"></i></div>
+  <p class="hint">Ставка фиксируется на месяц и ограничена настройками, чтобы редкие клиенты не оплачивали простой принтера.</p>
+</div>
+<div class="section-title"><h2>Последние заказы</h2><a href="/orders">Все заказы →</a></div>
+<div class="order-list">
+{% for order in orders %}
+<a class="card order-row" href="/orders/{{ order.id }}">
+  <div><strong>#{{ '%04d'|format(order.id) }} · {{ order.title }}</strong><span>{{ (order.print_minutes // 60) }}ч {{ order.print_minutes % 60 }}м · {{ status_labels.get(order.status, order.status) }}</span></div>
+  <div class="money">{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</div>
+</a>
+{% else %}
+<div class="card empty"><h3>Заказов пока нет</h3><p>Создайте первый расчёт по данным Bambu Studio.</p><a class="button primary" href="/orders/new">Создать заказ</a></div>
+{% endfor %}
+</div>
+{% endblock %}

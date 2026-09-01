@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    init: true
+    ports:
+      - "8585:8080"
+    environment:
+      DATA_DIR: /data
+      PORT: 8080
+    volumes:
+      - app-data:/data
+
+volumes:
+  app-data:

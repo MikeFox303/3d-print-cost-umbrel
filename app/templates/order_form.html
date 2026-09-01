@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Новый заказ — 3D Print Cost{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Новый заказ</h1><p>Введите данные после Slice в Bambu Studio.</p></div></div>
+<form method="post" action="/orders" class="form-grid" id="orderForm">
+  <section class="card form-section">
+    <h2>1. Заказ</h2>
+    <label>Название<input name="title" required placeholder="Например: крепление камеры"></label>
+    <label>Клиент <span class="muted">необязательно</span><input name="client" placeholder="Имя или контакт"></label>
+    <div class="two"><label>Часы печати<input type="number" name="print_hours" min="0" value="5"></label><label>Минуты<input type="number" name="print_mins" min="0" max="59" value="0"></label></div>
+    <div class="two"><label>Сложность<select name="complexity">{% for k,v in complexity_labels.items() %}<option value="{{k}}" {% if k=='normal' %}selected{% endif %}>{{v}}</option>{% endfor %}</select></label><label>Площадка<select name="platform">{% for k,v in platform_labels.items() %}<option value="{{k}}">{{v}}</option>{% endfor %}</select></label></div>
+    <div class="two"><label>Ручной труд, мин<input type="number" name="manual_minutes" min="0" value="15"></label><label>Упаковка, грн<input type="number" name="packaging_cost" min="0" step="0.01" value="20"></label></div>
+    <div class="two"><label>Целевая маржа, %<input type="number" name="target_margin" min="0" max="80" step="1" value="{{ '%.0f'|format(settings.target_margin*100) }}" data-percent="1"></label><label>Фактическая энергия, кВт·ч <span class="muted">если уже известна</span><input type="number" name="electricity_kwh" min="0" step="0.001"></label></div>
+  </section>
+  <section class="card form-section">
+    <div class="row between"><div><h2>2. Материалы</h2><p>Расход берите из Bambu Studio.</p></div><button type="button" class="button small" id="addMaterial">+ Материал</button></div>
+    <div id="materials">
+      <div class="material-row">
+        <label>Катушка<select name="filament_id"><option value="">Ввести вручную</option>{% for f in filaments %}<option value="{{f.id}}">{{f.brand}} {{f.name}} — {{'%.3f'|format(f.price_per_g)}} грн/г</option>{% endfor %}</select></label>
+        <label>Расход, г<input type="number" name="grams" min="0" step="0.1" value="100"></label>
+        <label class="manual-field">Название вручную<input name="manual_name" placeholder="PETG"></label>
+        <label class="manual-field">Цена 1 г<input type="number" name="manual_price_per_g" min="0" step="0.001" value="0.65"></label>
+      </div>
+    </div>
+    <p class="hint">Spoolman будет подключён только для чтения актуального остатка/цены. Приложение не списывает материал.</p>
+  </section>
+  <section class="card form-section">
+    <h2>3. Цена клиенту</h2>
+    <p>Если оставить пустым, после расчёта будет сохранена рекомендуемая цена, округлённая вверх до 10 грн.</p>
+    <label>Финальная цена, грн<input type="number" name="final_price" min="0" step="1" placeholder="Автоматически"></label>
+    <label>Статус<select name="status">{% for k,v in status_labels.items() %}<option value="{{k}}" {% if k=='draft' %}selected{% endif %}>{{v}}</option>{% endfor %}</select></label>
+    <button class="button primary wide" type="submit">Рассчитать и сохранить</button>
+  </section>
+</form>
+<template id="materialTemplate"><div class="material-row"><label>Катушка<select name="filament_id"><option value="">Ввести вручную</option>{% for f in filaments %}<option value="{{f.id}}">{{f.brand}} {{f.name}} — {{'%.3f'|format(f.price_per_g)}} грн/г</option>{% endfor %}</select></label><label>Расход, г<input type="number" name="grams" min="0" step="0.1"></label><label class="manual-field">Название вручную<input name="manual_name"></label><label class="manual-field">Цена 1 г<input type="number" name="manual_price_per_g" min="0" step="0.001"></label><button type="button" class="remove-row">×</button></div></template>
+{% endblock %}

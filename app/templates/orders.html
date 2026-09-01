@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Заказы — 3D Print Cost{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Заказы</h1><p>История расчётов, выполненных и отменённых заказов.</p></div><a class="button primary" href="/orders/new">+ Новый заказ</a></div>
+<div class="tabs"><a class="{% if view=='active' %}active{% endif %}" href="/orders">Активные</a><a class="{% if view=='archive' %}active{% endif %}" href="/orders?view=archive">Архив</a><a class="{% if view=='trash' %}active{% endif %}" href="/orders?view=trash">Корзина</a></div>
+<div class="order-list">
+{% for order in orders %}
+<div class="card order-row block">
+  <a href="/orders/{{ order.id }}"><strong>#{{ '%04d'|format(order.id) }} · {{ order.title }}</strong><span>{{ status_labels.get(order.status, order.status) }} · {{ (order.print_minutes // 60) }}ч {{ order.print_minutes % 60 }}м</span></a>
+  <div class="money">{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</div>
+  {% if view == 'trash' %}<div class="row actions"><form method="post" action="/orders/{{order.id}}/restore"><button class="button small">Восстановить</button></form><form method="post" action="/orders/{{order.id}}/delete" onsubmit="return confirm('Удалить заказ навсегда?')"><button class="button danger small">Удалить навсегда</button></form></div>{% endif %}
+</div>
+{% else %}<div class="card empty">Здесь пока пусто.</div>{% endfor %}
+</div>
+{% endblock %}

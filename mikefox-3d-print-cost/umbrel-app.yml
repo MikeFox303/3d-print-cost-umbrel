@@ -1,0 +1,27 @@
+manifestVersion: 1
+id: mikefox-3d-print-cost
+category: developer
+name: 3D Print Cost
+version: "0.1.0-dev.1"
+tagline: Calculate fair 3D-print quotes and track order economics
+description: >-
+  A local calculator and order ledger for 3D-printing services, designed for Bambu Lab X2D workflows.
+
+
+  Calculate a quote before printing using Bambu Studio time and filament usage, save order history, track two prices (minimum and recommended), and use a bounded adaptive equipment-payback model.
+
+
+  Spoolman integration is read-only. This app never deducts filament and does not interfere with Bambuddy or Spoolman's own inventory workflow.
+releaseNotes: ""
+developer: MikeFox303
+website: https://github.com/MikeFox303/3d-print-cost-umbrel
+dependencies: []
+repo: https://github.com/MikeFox303/3d-print-cost-umbrel
+support: https://github.com/MikeFox303/3d-print-cost-umbrel/issues
+port: 8585
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: MikeFox303
+submission: ""
