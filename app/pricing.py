@@ -20,6 +20,7 @@ PLATFORM_PREFIX = {
     "olx_business": "platform_olx_business",
 }
 
+
 @dataclass
 class PriceBreakdown:
     material: float
@@ -43,16 +44,43 @@ class PriceBreakdown:
     target_margin: float
     minimum_price: float
     recommended_price: float
+    extra_profit_payback_share: float
     expected_profit: float
 
     def to_dict(self):
         return asdict(self)
 
+
+@dataclass
+class CustomerPriceEconomics:
+    customer_price: float
+    tax: float
+    platform_fee: float
+    net_revenue: float
+    base_cost: float
+    operating_result: float
+    target_margin_amount: float
+    planned_payback: float
+    payback_contribution: float
+    profit_after_payback: float
+    profit_margin_after_payback: float
+    minimum_gap: float
+    recommended_gap: float
+    meets_minimum_price: bool
+    meets_recommended_price: bool
+    covers_base_cost: bool
+
+    def to_dict(self):
+        return asdict(self)
+
+
 def _month_diff(start: date, end: date) -> int:
     return max(0, (end.year - start.year) * 12 + end.month - start.month)
 
+
 def _month_start(d: date) -> date:
     return date(d.year, d.month, 1)
+
 
 def _price_with_margin(base: float, tax: float, platform_pct: float, platform_fixed: float,
                        platform_cap: float, margin: float, minimum_order: float) -> float:
@@ -70,11 +98,90 @@ def _price_with_margin(base: float, tax: float, platform_pct: float, platform_fi
         result = uncapped
     return max(minimum_order, result)
 
+
 def platform_fee(price: float, pct: float, fixed: float, cap: float) -> float:
     fee = price * pct + fixed
     if cap > 0:
         fee = min(fee, cap)
     return fee
+
+
+def _payback_from_customer_price(
+    *,
+    customer_price: float,
+    tax_rate: float,
+    platform_percent: float,
+    platform_fixed: float,
+    platform_cap: float,
+    base_cost: float,
+    target_margin: float,
+    planned_payback: float,
+    extra_profit_payback_share: float,
+) -> tuple[float, float, float, float, float]:
+    """Return tax, platform fee, net revenue, operating result and payback contribution.
+
+    The target margin is protected before equipment payback is credited. This is
+    the same rule used for realized payback when an order is completed.
+    """
+    price = max(0.0, float(customer_price))
+    tax = price * max(0.0, float(tax_rate))
+    fee = platform_fee(price, platform_percent, platform_fixed, platform_cap) if price > 0 else 0.0
+    net_revenue = price - tax - fee
+    operating_result = net_revenue - float(base_cost)
+    protected_margin = price * max(0.0, float(target_margin))
+    available_for_payback = max(0.0, operating_result - protected_margin)
+    planned = max(0.0, float(planned_payback))
+    base_realized = min(planned, available_for_payback)
+    extra = max(0.0, available_for_payback - planned)
+    share = min(1.0, max(0.0, float(extra_profit_payback_share)))
+    payback_contribution = base_realized + extra * share
+    return tax, fee, net_revenue, operating_result, payback_contribution
+
+
+def evaluate_customer_price(
+    breakdown: PriceBreakdown,
+    customer_price: float,
+    *,
+    extra_profit_payback_share: float | None = None,
+) -> CustomerPriceEconomics:
+    """Evaluate a manual/rounded customer price against the snapshotted quote economics."""
+    price = max(0.0, float(customer_price))
+    share = (
+        breakdown.extra_profit_payback_share
+        if extra_profit_payback_share is None
+        else float(extra_profit_payback_share)
+    )
+    tax, fee, net_revenue, operating_result, payback_contribution = _payback_from_customer_price(
+        customer_price=price,
+        tax_rate=breakdown.tax_rate,
+        platform_percent=breakdown.platform_percent,
+        platform_fixed=breakdown.platform_fixed,
+        platform_cap=breakdown.platform_cap,
+        base_cost=breakdown.base_cost,
+        target_margin=breakdown.target_margin,
+        planned_payback=breakdown.planned_payback,
+        extra_profit_payback_share=share,
+    )
+    profit_after_payback = operating_result - payback_contribution
+    return CustomerPriceEconomics(
+        customer_price=price,
+        tax=tax,
+        platform_fee=fee,
+        net_revenue=net_revenue,
+        base_cost=breakdown.base_cost,
+        operating_result=operating_result,
+        target_margin_amount=price * breakdown.target_margin,
+        planned_payback=breakdown.planned_payback,
+        payback_contribution=payback_contribution,
+        profit_after_payback=profit_after_payback,
+        profit_margin_after_payback=(profit_after_payback / price) if price > 0 else 0.0,
+        minimum_gap=price - breakdown.minimum_price,
+        recommended_gap=price - breakdown.recommended_price,
+        meets_minimum_price=price >= breakdown.minimum_price,
+        meets_recommended_price=price >= breakdown.recommended_price,
+        covers_base_cost=operating_result >= 0,
+    )
+
 
 def get_or_create_monthly_payback_rate(db: Session, settings: dict[str, object], today: date | None = None) -> float:
     today = today or date.today()
@@ -127,6 +234,7 @@ def get_or_create_monthly_payback_rate(db: Session, settings: dict[str, object],
     db.commit()
     return rate
 
+
 def calculate_price(
     db: Session,
     settings: dict[str, object],
@@ -176,6 +284,7 @@ def calculate_price(
     min_margin = float(settings["min_margin"])
     target_margin = float(target_margin)
     minimum_order = float(settings["minimum_order_price"])
+    extra_profit_payback_share = float(settings["extra_profit_payback_share"])
 
     minimum_price = _price_with_margin(base_cost, tax_rate, platform_pct, platform_fixed, platform_cap, min_margin, minimum_order)
     recommended_price = _price_with_margin(recommended_base, tax_rate, platform_pct, platform_fixed, platform_cap, target_margin, minimum_order)
@@ -205,27 +314,42 @@ def calculate_price(
         target_margin=target_margin,
         minimum_price=minimum_price,
         recommended_price=recommended_price,
+        extra_profit_payback_share=extra_profit_payback_share,
         expected_profit=expected_profit,
     )
+
 
 def compute_realized_payback(order: Order, settings: dict[str, object]) -> float:
     if not order.final_price or order.final_price <= 0:
         return 0.0
     import json
     snap = json.loads(order.calc_snapshot_json or "{}")
+    customer_economics = snap.get("customer_economics")
+    if isinstance(customer_economics, dict):
+        snap_price = float(customer_economics.get("customer_price", 0) or 0)
+        if abs(snap_price - float(order.final_price)) < 0.005:
+            return max(0.0, float(customer_economics.get("payback_contribution", 0) or 0))
+
     tax = float(snap.get("tax_rate", settings["tax_rate"]))
     pct = float(snap.get("platform_percent", 0))
     fixed = float(snap.get("platform_fixed", 0))
     cap = float(snap.get("platform_cap", 0))
     target_margin = float(snap.get("target_margin", order.target_margin))
-    fee = platform_fee(order.final_price, pct, fixed, cap)
     base_cost = float(snap.get("base_cost", order.production_cost))
-    surplus_after_cost = max(0.0, order.final_price * (1 - tax) - fee - base_cost)
-    available_for_payback = max(0.0, surplus_after_cost - order.final_price * target_margin)
-    planned = float(order.planned_payback)
-    base_realized = min(planned, available_for_payback)
-    extra = max(0.0, available_for_payback - planned)
-    return base_realized + extra * float(settings["extra_profit_payback_share"])
+    extra_share = float(snap.get("extra_profit_payback_share", settings["extra_profit_payback_share"]))
+    _, _, _, _, payback_contribution = _payback_from_customer_price(
+        customer_price=float(order.final_price),
+        tax_rate=tax,
+        platform_percent=pct,
+        platform_fixed=fixed,
+        platform_cap=cap,
+        base_cost=base_cost,
+        target_margin=target_margin,
+        planned_payback=float(order.planned_payback),
+        extra_profit_payback_share=extra_share,
+    )
+    return payback_contribution
+
 
 def round_customer_price(value: float) -> float:
     return float(ceil(value / 10.0) * 10)
