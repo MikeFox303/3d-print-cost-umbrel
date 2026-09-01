@@ -3,6 +3,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "mikefox-3d-print-cost"
+# This is the currently published Community App package. Source development may
+# intentionally move one version ahead while CI publishes the next multi-arch
+# runtime and before its immutable digest is known/pinned in a package PR.
 EXPECTED_VERSION = "0.10.0-dev.1"
 EXPECTED_IMAGE_DIGEST = "sha256:e2288a7480576313beaeac82242528a5c4b60c7ffe24b3b2385d93d49be0cc0b"
 
@@ -51,7 +54,11 @@ def test_umbrel_runtime_image_is_versioned_and_digest_pinned():
     assert ":latest" not in compose
 
 
-def test_manifest_and_runtime_version_match_application_version():
-    app_version = {}
-    exec(read(ROOT / "app" / "__init__.py"), app_version)
-    assert app_version["__version__"] == EXPECTED_VERSION
+def test_manifest_and_pinned_runtime_use_the_same_package_version():
+    manifest = read(PACKAGE / "umbrel-app.yml")
+    compose = read(PACKAGE / "docker-compose.yml")
+    manifest_match = re.search(r'^version:\s*"([^"]+)"', manifest, re.MULTILINE)
+    image_match = re.search(r"3d-print-cost-umbrel:([^@\s]+)@sha256:", compose)
+    assert manifest_match is not None
+    assert image_match is not None
+    assert manifest_match.group(1) == image_match.group(1) == EXPECTED_VERSION

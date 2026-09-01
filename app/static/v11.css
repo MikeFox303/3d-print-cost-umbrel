@@ -1,0 +1,170 @@
+/* v0.11 ultrawide / 4K real-device refinement */
+
+/* Make single-item empty states use the page instead of looking like a stray card. */
+.filament-grid > .empty{
+  grid-column:1/-1;
+  min-height:112px;
+  display:grid;
+  place-items:center;
+}
+
+/* Give data-heavy rows a little more breathing room on normal desktop too. */
+.breakdown>div,.material-line,.metric-inline{align-items:center}
+
+@media(min-width:2400px){
+  :root{
+    --content-max:2920px;
+    --sidebar-w:310px;
+  }
+
+  body{font-size:16px}
+  .sidebar{padding:32px 22px 26px}
+  .brand{gap:14px;padding:0 12px 30px}
+  .brand-mark{width:48px;height:48px;border-radius:14px;font-size:16px}
+  .brand strong{font-size:18px}
+  .brand small{font-size:13px}
+  .nav-caption{padding:0 14px 7px;font-size:11px}
+  .sidebar nav a{padding:13px 14px;border-radius:11px;font-size:15px}
+  .side-note{font-size:12px;padding:16px 14px 0}
+
+  main{padding:48px 72px 112px}
+  .page-head{margin-bottom:32px}
+  .page-head h1{font-size:40px}
+  .page-head p{font-size:16px}
+  .eyebrow{font-size:12px}
+  .button{min-height:46px;padding:11px 18px;font-size:15px}
+  .button.small{font-size:14px}
+
+  .card{padding:26px;border-radius:19px}
+  .card h2,.payback-card h2,.section-title h2{font-size:20px}
+  .hint{font-size:14px}
+
+  .dashboard-layout{grid-template-columns:minmax(0,1fr) 410px;gap:26px}
+  .dashboard-secondary{gap:19px}
+  .stats{gap:20px;margin-bottom:20px}
+  .metric{min-height:132px}
+  .metric span{font-size:14px}
+  .metric strong{font-size:32px}
+  .payback-card{padding:28px;margin-bottom:32px}
+  .payback-card>.row>strong{font-size:27px}
+  .progress{height:12px;margin:20px 0 12px}
+  .section-title{margin:32px 0 15px}
+  .order-row{min-height:78px;padding:19px 22px}
+  .order-row strong{font-size:16px}
+  .order-row span{font-size:14px}
+  .money{font-size:21px}
+  .empty{padding:54px 34px}
+  .empty h3{font-size:21px}
+
+  .quick-card h2,.workflow-card h2{margin-bottom:17px}
+  .quick-actions{gap:11px}
+  .quick-action{grid-template-columns:42px 1fr auto;gap:13px;padding:13px;border-radius:13px}
+  .quick-icon{width:42px;height:42px;border-radius:11px}
+  .quick-copy strong{font-size:14px}
+  .quick-copy span{font-size:12px}
+  .workflow-list{gap:12px}
+  .workflow-step{grid-template-columns:29px 1fr;gap:12px;font-size:14px}
+  .workflow-step b{width:29px;height:29px;font-size:12px}
+
+  .form-grid,.settings-grid{gap:22px}
+  .two-col{gap:22px;margin-bottom:22px}
+  .form-section h2{font-size:20px;margin-bottom:19px}
+  label{font-size:15px;gap:9px;margin-bottom:16px}
+  input,select{min-height:49px;padding:12px 14px;border-radius:12px;font-size:16px}
+  .two,.three{gap:14px}
+  .material-row{gap:12px;padding:18px 0}
+  .tabs{margin-bottom:21px;gap:10px}
+  .tabs a{padding:10px 16px;font-size:14px}
+  .breakdown>div,.material-line,.metric-inline{padding:13px 0;font-size:15px}
+  .filament-grid{gap:18px}
+  .filament-card{min-height:148px}
+  .filament-card span{font-size:14px}
+  .notice,.warning,.spool-picker-wrap{font-size:15px}
+  .preview-prices strong{font-size:29px}
+  .badge{font-size:13px;padding:8px 11px}
+}
+
+@media(min-width:3000px){
+  :root{
+    --content-max:3240px;
+    --sidebar-w:340px;
+  }
+
+  body{font-size:17px}
+  .sidebar{padding:36px 26px 28px}
+  .brand{gap:15px;padding:0 14px 34px}
+  .brand-mark{width:52px;height:52px;border-radius:15px;font-size:17px}
+  .brand strong{font-size:20px}
+  .brand small{font-size:14px}
+  .nav-group{gap:5px;margin-bottom:22px}
+  .nav-caption{padding:0 16px 8px;font-size:11px}
+  .sidebar nav a{padding:14px 16px;border-radius:12px;font-size:17px}
+  .side-note{font-size:13px;line-height:1.6;padding:18px 16px 0}
+
+  main{padding:56px 88px 124px}
+  .page-head{margin-bottom:36px}
+  .page-head h1{font-size:46px}
+  .page-head p{font-size:18px;margin-top:10px}
+  .eyebrow{font-size:13px;margin-bottom:9px}
+  .button{min-height:50px;padding:12px 20px;border-radius:12px;font-size:16px}
+  .button.small{font-size:15px}
+
+  .card{padding:30px;border-radius:20px}
+  .card h2,.payback-card h2,.section-title h2{font-size:22px}
+  .hint{font-size:15px;line-height:1.6}
+
+  .dashboard-layout{grid-template-columns:minmax(0,1fr) 470px;gap:30px}
+  .dashboard-secondary{gap:22px;top:34px}
+  .stats{gap:22px;margin-bottom:22px}
+  .metric{min-height:146px}
+  .metric span{font-size:15px}
+  .metric strong{font-size:36px;margin-top:12px}
+  .payback-card{padding:31px;margin-bottom:36px}
+  .payback-card>.row>strong{font-size:30px}
+  .progress{height:13px;margin:22px 0 13px}
+  .section-title{margin:36px 0 17px}
+  .section-title a{font-size:16px}
+  .order-list{gap:14px}
+  .order-row{min-height:84px;padding:21px 25px}
+  .order-row strong{font-size:17px}
+  .order-row span{font-size:15px;margin-top:6px}
+  .money{font-size:23px}
+  .empty{padding:60px 38px}
+  .empty h3{font-size:22px}
+
+  .quick-card h2,.workflow-card h2{margin-bottom:19px}
+  .quick-actions{gap:12px}
+  .quick-action{grid-template-columns:46px 1fr auto;gap:14px;padding:14px;border-radius:14px}
+  .quick-icon{width:46px;height:46px;border-radius:12px;font-size:17px}
+  .quick-copy strong{font-size:16px}
+  .quick-copy span{font-size:13px;margin-top:3px}
+  .quick-arrow{font-size:20px}
+  .workflow-list{gap:14px}
+  .workflow-step{grid-template-columns:31px 1fr;gap:13px;font-size:15px}
+  .workflow-step b{width:31px;height:31px;font-size:12px}
+
+  .form-grid,.settings-grid{gap:26px}
+  .two-col{gap:26px;margin-bottom:26px}
+  .form-section h2{font-size:22px;margin-bottom:21px}
+  label{font-size:16px;gap:10px;margin-bottom:17px}
+  input,select{min-height:53px;padding:13px 15px;border-radius:12px;font-size:17px}
+  .two,.three{gap:16px}
+  .material-row{gap:14px;padding:20px 0}
+  .tabs{margin-bottom:24px;gap:11px}
+  .tabs a{padding:11px 18px;font-size:15px}
+  .breakdown>div,.material-line,.metric-inline{padding:15px 0;font-size:16px}
+  .breakdown .total{font-size:19px}
+  .filament-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+  .filament-card{min-height:162px}
+  .filament-card span{font-size:15px}
+  .notice,.warning,.spool-picker-wrap{font-size:16px}
+  .price-card strong{font-size:39px}
+  .preview-prices strong{font-size:31px}
+  .badge{font-size:14px;padding:9px 12px}
+  code{font-size:.96em}
+}
+
+/* Phone/tablet layout remains deliberately compact and independent of desktop scaling. */
+@media(max-width:900px){
+  .filament-grid > .empty{min-height:96px}
+}
