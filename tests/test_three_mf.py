@@ -1,9 +1,16 @@
 from io import BytesIO
+from types import SimpleNamespace
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
-from app.three_mf import ThreeMFImportError, import_bambu_3mf, parse_slice_info_xml
+from app.three_mf import (
+    ThreeMFImportError,
+    import_bambu_3mf,
+    match_local_filaments,
+    normalize_material_name,
+    parse_slice_info_xml,
+)
 
 
 SLICE_XML = b'''<?xml version="1.0" encoding="UTF-8"?>
@@ -28,6 +35,17 @@ def make_3mf(xml: bytes = SLICE_XML) -> BytesIO:
         zf.writestr("Metadata/slice_info.config", xml)
     out.seek(0)
     return out
+
+
+def spool(id: int, material: str, color: str, name: str):
+    return SimpleNamespace(
+        id=id,
+        brand="SUNLU",
+        name=name,
+        material=material,
+        color=color,
+        price_per_g=0.65 + id / 100,
+    )
 
 
 def test_parse_slice_info_extracts_time_and_each_filament():
@@ -64,3 +82,41 @@ def test_namespaced_config_is_supported():
     assert plates[0].index == 3
     assert plates[0].print_minutes == 2
     assert plates[0].filaments[0].used_g == 1.5
+
+
+def test_material_normalization_ignores_punctuation_not_family():
+    assert normalize_material_name("PETG-HF") == normalize_material_name("petg hf")
+    assert normalize_material_name("PLA-S") != normalize_material_name("PLA")
+
+
+def test_local_match_autoselects_unique_material():
+    result = match_local_filaments("PETG", "#000000", [spool(1, "PETG", "Black", "PETG Black")])
+    assert result["auto_select_id"] == 1
+    assert result["auto_select_reason"] == "material"
+    assert result["candidates"][0]["material"] == "PETG"
+
+
+def test_local_match_prefers_unique_exact_color_among_same_material():
+    result = match_local_filaments(
+        "PETG",
+        "#000000",
+        [
+            spool(1, "PETG", "#000000", "PETG Black"),
+            spool(2, "PETG", "#FFFFFF", "PETG White"),
+            spool(3, "PLA", "#000000", "PLA Black"),
+        ],
+    )
+    assert [item["id"] for item in result["candidates"]] == [1, 2]
+    assert result["auto_select_id"] == 1
+    assert result["auto_select_reason"] == "material+color"
+
+
+def test_local_match_keeps_ambiguous_material_manual():
+    result = match_local_filaments(
+        "PETG",
+        "#123456",
+        [spool(1, "PETG", "Black", "PETG Black"), spool(2, "PETG", "White", "PETG White")],
+    )
+    assert len(result["candidates"]) == 2
+    assert result["auto_select_id"] is None
+    assert result["auto_select_reason"] == ""
