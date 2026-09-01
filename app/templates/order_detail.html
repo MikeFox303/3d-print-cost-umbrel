@@ -8,6 +8,11 @@
   <div class="card price-card final"><span>Цена клиенту</span><strong>{{ '%.0f'|format(order.final_price or order.recommended_price) }} грн</strong><small>Зафиксирована в заказе</small></div>
 </div>
 <section class="card" style="margin-bottom:16px">
+  <div class="row between"><div><h2>Для клиента</h2><p>Готовый текст без внутренних затрат, маржи, налогов и окупаемости.</p></div><button class="button small" type="button" id="copySavedClientQuote">Скопировать</button></div>
+  <textarea id="savedClientQuoteText" readonly aria-label="Сообщение для клиента" style="width:100%;min-height:150px;resize:vertical">Формирую сообщение…</textarea>
+  <div id="savedClientQuoteStatus" class="hint"></div>
+</section>
+<section class="card" style="margin-bottom:16px">
   <div class="row between"><div><h2>Экономика цены клиенту</h2><p>Считается по сохранённому финансовому snapshot заказа, а не по текущим ценам материалов.</p></div><span class="badge readonly">SNAPSHOT</span></div>
   <div id="customerEconomicsResult" class="hint">Считаю налог, комиссию, прибыль и вклад в окупаемость…</div>
 </section>
@@ -29,6 +34,15 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script>
+(() => {
+ const textarea=document.getElementById('savedClientQuoteText'); const status=document.getElementById('savedClientQuoteStatus'); const button=document.getElementById('copySavedClientQuote');
+ if(!textarea||!button)return;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+ fetch('/api/orders/{{order.id}}/client-message').then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.detail||data.error||'Ошибка сообщения для клиента');return data;}).then(data=>{textarea.value=data.text||'';if(status)status.textContent='Текст сформирован по сохранённой цене заказа.';}).catch(error=>{textarea.value='';if(status)status.innerHTML=`<span class="warning">${esc(error.message)}</span>`;});
+ button.addEventListener('click',async()=>{const text=textarea.value||'';if(!text){if(status)status.textContent='Сообщение ещё не готово.';return;}const copied=typeof window.copyText==='function'?await window.copyText(text):false;if(status)status.textContent=copied?'Скопировано.':'Не удалось скопировать автоматически — выделите текст вручную.';});
+})();
+</script>
 <script>
 (() => {
  const box=document.getElementById('customerEconomicsResult'); if(!box)return;

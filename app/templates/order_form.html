@@ -2,7 +2,7 @@
 {% block title %}{{ page_title }} — 3D Print Cost{% endblock %}
 {% block content %}
 <style>
-.import-plates{display:grid;gap:10px;margin-top:10px}.import-plate{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line,#273244);border-radius:12px}.import-plate small{display:block;margin-top:3px}.import-success{margin-bottom:10px;padding:10px;border-radius:10px;background:rgba(34,197,94,.12)}.customer-economics{margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#273244)}.customer-economics-title{margin-top:14px;font-weight:700}.customer-price-state{margin:8px 0 4px}.customer-price-state.good{color:#22c55e}.customer-price-state.warn{color:#f59e0b}.customer-price-state.bad{color:#ef4444}
+.import-plates{display:grid;gap:10px;margin-top:10px}.import-plate{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--line,#273244);border-radius:12px}.import-plate small{display:block;margin-top:3px}.import-success{margin-bottom:10px;padding:10px;border-radius:10px;background:rgba(34,197,94,.12)}.customer-economics{margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#273244)}.customer-economics-title{margin-top:14px;font-weight:700}.customer-price-state{margin:8px 0 4px}.customer-price-state.good{color:#22c55e}.customer-price-state.warn{color:#f59e0b}.customer-price-state.bad{color:#ef4444}.client-quote-box{margin-top:16px;padding-top:14px;border-top:1px solid var(--line,#273244)}.client-quote-box textarea{width:100%;min-height:150px;margin-top:10px;resize:vertical}.copy-status{margin-left:8px}
 </style>
 <div class="page-head">
   <div><h1>{{ page_title }}</h1><p>Расчёт делается до печати по данным после Slice в Bambu Studio.</p></div>
@@ -101,6 +101,11 @@
       <div class="mini-breakdown customer-economics" id="previewCustomerEconomics"></div>
       <div id="previewWarnings"></div>
       <button class="button small" type="button" id="useRecommended">Подставить рекомендуемую цену</button>
+      <div class="client-quote-box">
+        <div class="row between"><div><strong>Для клиента</strong><div class="hint">Без себестоимости, маржи, налогов и окупаемости.</div></div><button class="button small" type="button" id="copyPreviewClientQuote">Скопировать</button></div>
+        <textarea id="previewClientQuoteText" readonly aria-label="Сообщение для клиента"></textarea>
+        <div id="previewClientQuoteStatus" class="hint copy-status"></div>
+      </div>
     </div>
   </section>
 
@@ -108,7 +113,7 @@
     <h2>4. Сохранение</h2>
     <label>Финальная цена клиенту, грн<input type="number" id="finalPrice" name="final_price" min="0" step="1" value="{{ '' if duplicate else (order.final_price if order and order.final_price is not none else '') }}" placeholder="Автоматически по рекомендуемой"></label>
     <label>Статус<select name="status">{% for k,v in status_labels.items() %}<option value="{{k}}" {% if (duplicate and k=='draft') or (not duplicate and order and order.status==k) or (not order and k=='draft') %}selected{% endif %}>{{v}}</option>{% endfor %}</select></label>
-    <p class="hint">Если финальную цену оставить пустой, сохранится рекомендуемая цена, округлённая вверх до 10 грн. После изменения цены нажмите «Пересчитать», чтобы увидеть её реальную прибыль и вклад в окупаемость.</p>
+    <p class="hint">Если финальную цену оставить пустой, сохранится рекомендуемая цена, округлённая вверх до 10 грн. После изменения цены нажмите «Пересчитать», чтобы увидеть её реальную прибыль, вклад в окупаемость и обновлённое сообщение для клиента.</p>
     <button class="button primary wide" type="submit">{{ submit_label }}</button>
   </section>
 </form>

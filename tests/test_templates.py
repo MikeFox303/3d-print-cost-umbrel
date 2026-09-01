@@ -92,3 +92,20 @@ def test_v013_actual_customer_price_economics_ui_contract():
     assert "/customer-economics" in order_detail
     assert "saved_financial_snapshot" in economics_router
     assert "evaluate_customer_price" in economics_router
+
+
+def test_v013_client_safe_quote_ui_contract():
+    root = Path(__file__).resolve().parents[1]
+    app_js = (root / "app" / "static" / "app.js").read_text()
+    order_form = (root / "app" / "templates" / "order_form.html").read_text()
+    order_detail = (root / "app" / "templates" / "order_detail.html").read_text()
+    router = (root / "app" / "routers" / "client_quotes.py").read_text()
+
+    assert "/api/quotes/client-message" in app_js
+    assert "previewClientQuoteText" in order_form
+    assert "copyPreviewClientQuote" in order_form
+    assert "/client-message" in order_detail
+    assert "copySavedClientQuote" in order_detail
+    assert "navigator.clipboard" in app_js
+    assert "document.execCommand('copy')" in app_js
+    assert "build_client_quote" in router

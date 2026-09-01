@@ -97,6 +97,7 @@ function setupQuotePreview() {
       panel.dataset.recommended = String(data.recommended_rounded || data.recommended_price || '');
       panel.classList.remove('hidden');
       panel.classList.remove('stale');
+      await refreshPreviewClientQuote(form);
     } catch (err) {
       panel.classList.remove('hidden');
       panel.classList.remove('stale');
@@ -117,6 +118,37 @@ function setupQuotePreview() {
     invalidatePreview();
     await calculate();
   });
+
+  document.getElementById('copyPreviewClientQuote')?.addEventListener('click', async () => {
+    const textarea = document.getElementById('previewClientQuoteText');
+    const status = document.getElementById('previewClientQuoteStatus');
+    const text = textarea?.value || '';
+    if (!text) {
+      if (status) status.textContent = 'Сначала рассчитайте заказ.';
+      return;
+    }
+    const copied = await copyText(text);
+    if (status) status.textContent = copied ? 'Скопировано.' : 'Не удалось скопировать автоматически — выделите текст вручную.';
+  });
+}
+
+async function refreshPreviewClientQuote(form) {
+  const textarea = document.getElementById('previewClientQuoteText');
+  const status = document.getElementById('previewClientQuoteStatus');
+  if (!textarea) return;
+  textarea.value = 'Формирую сообщение…';
+  if (status) status.textContent = '';
+  try {
+    const response = await fetch('/api/quotes/client-message', { method: 'POST', body: new FormData(form) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || data.error || 'Ошибка сообщения для клиента');
+    textarea.value = data.text || '';
+    textarea.dataset.customerPrice = String(data.customer_price || '');
+    if (status) status.textContent = 'Готово к отправке клиенту. Внутренние расчёты в текст не включаются.';
+  } catch (error) {
+    textarea.value = '';
+    if (status) status.textContent = `Не удалось сформировать сообщение: ${error.message}`;
+  }
 }
 
 function setupSpoolmanPanels() {
@@ -250,11 +282,39 @@ function invalidatePreview() {
   if (panel && !panel.classList.contains('hidden')) panel.classList.add('stale');
 }
 
+async function copyText(text) {
+  const value = String(text || '');
+  if (!value) return false;
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch (_error) {
+      // Local umbrelOS installs are often plain HTTP, so keep the legacy copy fallback.
+    }
+  }
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  textarea.style.fontSize = '16px';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+  let copied = false;
+  try { copied = document.execCommand('copy'); } catch (_error) { copied = false; }
+  textarea.remove();
+  return copied;
+}
+
 // Page-specific scripts (for example the Bambu 3MF importer) may replace
-// material rows after the main DOM setup has run. Expose only these two UI
-// refresh hooks; no business logic or external-write capability is exported.
+// material rows after the main DOM setup has run. Expose only these UI helpers;
+// no business logic or external-write capability is exported.
 window.refreshRemainingWarnings = refreshRemainingWarnings;
 window.invalidatePreview = invalidatePreview;
+window.copyText = copyText;
 
 function money(v) { return `${Math.round(Number(v || 0))} грн`; }
 function escapeHtml(v){return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));}
