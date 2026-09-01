@@ -109,3 +109,20 @@ def test_v013_client_safe_quote_ui_contract():
     assert "navigator.clipboard" in app_js
     assert "document.execCommand('copy')" in app_js
     assert "build_client_quote" in router
+
+
+def test_v013_energy_reconciliation_ui_contract():
+    root = Path(__file__).resolve().parents[1]
+    order_detail = (root / "app" / "templates" / "order_detail.html").read_text()
+    router = (root / "app" / "routers" / "home_assistant.py").read_text()
+    pricing = (root / "app" / "pricing.py").read_text()
+
+    assert "Сверка электричества" in order_detail
+    assert "Сверить расчёт с фактом" in order_detail
+    assert "Информационная прибыль с фактическим электричеством" in order_detail
+    assert "electricity_cost_delta" in order_detail
+    assert "quote_snapshot_unchanged" in router
+    assert '"reconciliation_scope": "electricity_only"' in router
+    assert "electricity_kwh_used" in pricing
+    assert "electricity_tariff" in pricing
+    assert "electricity_source" in pricing
