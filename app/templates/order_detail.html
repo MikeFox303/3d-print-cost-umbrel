@@ -27,9 +27,9 @@
 </div>
 {% if order.status == 'completed' %}
 <section class="card" style="margin-top:16px">
-  <div class="row between"><div><h2>Фактическая энергия · Home Assistant</h2><p>Читается по истории сенсора; заказ и его финансовый snapshot не изменяются.</p></div><span class="badge readonly">GET ONLY</span></div>
-  <button class="button" type="button" id="loadHaEnergy">Получить фактическую энергию</button>
-  <div id="haEnergyResult" class="hint">Окно: время завершения минус длительность печати.</div>
+  <div class="row between"><div><h2>Сверка электричества · Home Assistant</h2><p>Только постпечатная статистика: цена заказа, финансовый snapshot и зачтённая окупаемость не изменяются.</p></div><span class="badge readonly">GET ONLY</span></div>
+  <button class="button" type="button" id="loadHaEnergy">Сверить расчёт с фактом</button>
+  <div id="haEnergyResult" class="hint">Окно измерения: время завершения минус длительность печати.</div>
 </section>
 {% endif %}
 {% endblock %}
@@ -61,9 +61,12 @@
 (() => {
  const button=document.getElementById('loadHaEnergy'); const box=document.getElementById('haEnergyResult'); if(!button||!box)return;
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+ const signed=(value,digits=3)=>{const n=Number(value||0);return `${n>=0?'+':''}${n.toFixed(digits)}`;};
  button.addEventListener('click',async()=>{ button.disabled=true; box.textContent='Читаю историю Home Assistant…';
   try{ const response=await fetch('/api/orders/{{order.id}}/home-assistant-energy'); const data=await response.json(); if(!response.ok)throw new Error(data.detail||data.error||'Ошибка Home Assistant');
-   const diff=Number(data.difference_kwh||0); box.innerHTML=`<div class="breakdown" style="margin-top:12px"><div><span>Фактически</span><b>${Number(data.kwh).toFixed(3)} кВт·ч</b></div><div><span>Расчётно</span><b>${Number(data.estimated_kwh).toFixed(3)} кВт·ч</b></div><div><span>Разница</span><b>${diff>=0?'+':''}${diff.toFixed(3)} кВт·ч</b></div><div><span>Фактическая стоимость</span><b>${Number(data.actual_cost).toFixed(2)} грн</b></div><div><span>Сенсор</span><b>${esc(data.entity_id)} · ${esc(data.sensor_unit)}</b></div><div><span>Метод</span><b>${esc(data.mode)}</b></div></div><p class="hint">Результат не сохраняется в заказе.</p>`;
+   const tariffLabel=data.tariff_source==='quote_snapshot'?'сохранён в заказе':'совместимый fallback';
+   const compatibility=data.compatibility_warning?`<div class="warning" style="margin-top:12px">⚠ ${esc(data.compatibility_warning)}</div>`:'';
+   box.innerHTML=`<div class="notice" style="margin-top:12px">Сверка только электричества. Историческая цена и расчёт заказа остаются неизменными.</div><div class="breakdown" style="margin-top:12px"><div><span>Расчётные кВт·ч</span><b>${Number(data.quoted_kwh||0).toFixed(3)} кВт·ч</b></div><div><span>Фактические кВт·ч</span><b>${Number(data.actual_kwh||data.kwh||0).toFixed(3)} кВт·ч</b></div><div><span>Разница энергии</span><b>${signed(data.difference_kwh)} кВт·ч</b></div><div><span>Тариф для сверки</span><b>${Number(data.tariff||0).toFixed(2)} грн/кВт·ч · ${esc(tariffLabel)}</b></div><div><span>Электричество в расчёте</span><b>${Number(data.quoted_electricity_cost||0).toFixed(2)} грн</b></div><div><span>Фактическое электричество</span><b>${Number(data.actual_cost||0).toFixed(2)} грн</b></div><div><span>Разница стоимости</span><b>${signed(data.electricity_cost_delta,2)} грн</b></div><div><span>Прибыль по сохранённому расчёту</span><b>${Number(data.profit_after_quoted_energy||0).toFixed(2)} грн</b></div><div class="total"><span>Информационная прибыль с фактическим электричеством</span><b>${Number(data.profit_after_actual_energy||0).toFixed(2)} грн</b></div><div><span>Сенсор</span><b>${esc(data.entity_id)} · ${esc(data.sensor_unit)}</b></div><div><span>Метод измерения</span><b>${esc(data.mode)}</b></div></div>${compatibility}<p class="hint">Ничего не сохраняется обратно в заказ. Эта сверка не является ретроактивным перерасчётом цены.</p>`;
   }catch(error){box.innerHTML=`<div class="warning">${esc(error.message)} · <a href="/home-assistant">Настроить Home Assistant</a></div>`;}finally{button.disabled=false;}
  });
 })();
