@@ -214,7 +214,22 @@ def _parse_order_form(db: Session, form) -> dict:
     }
 
 
+def _validate_quote_inputs(data: dict) -> None:
+    if data["print_minutes"] <= 0:
+        raise HTTPException(422, "Укажите расчётное время печати из Bambu Studio.")
+    if not data["materials"]:
+        raise HTTPException(422, "Добавьте хотя бы один материал и его расход.")
+    missing_price = [m["name"] for m in data["materials"] if float(m.get("price_per_g") or 0) <= 0]
+    if missing_price:
+        names = ", ".join(missing_price[:4])
+        raise HTTPException(
+            422,
+            f"Не задана цена материала: {names}. Выберите катушку или укажите цену за грамм.",
+        )
+
+
 def _calculate_form(db: Session, data: dict):
+    _validate_quote_inputs(data)
     settings = get_settings(db)
     breakdown = calculate_price(
         db,
