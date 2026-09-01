@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.db import Base, get_db
 from app.integrations import ReadOnlyHomeAssistantClient
@@ -12,15 +13,25 @@ from app.settings import set_setting
 
 
 def make_db():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)()
+    return sessionmaker(bind=engine, expire_on_commit=False)()
 
 
 def test_home_assistant_routes_are_registered():
-    paths = {(getattr(route, "path", None), getattr(route, "methods", set())) for route in app.routes}
-    assert any(path == "/home-assistant" and "GET" in methods for path, methods in paths)
-    assert any(path == "/api/orders/{order_id}/home-assistant-energy" and "GET" in methods for path, methods in paths)
+    routes = [
+        (getattr(route, "path", None), set(getattr(route, "methods", set()) or set()))
+        for route in app.routes
+    ]
+    assert any(path == "/home-assistant" and "GET" in methods for path, methods in routes)
+    assert any(
+        path == "/api/orders/{order_id}/home-assistant-energy" and "GET" in methods
+        for path, methods in routes
+    )
 
 
 def test_home_assistant_energy_is_read_only_for_order(monkeypatch):
