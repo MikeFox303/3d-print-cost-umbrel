@@ -31,6 +31,8 @@ def test_public_route_inventory_is_stable():
         ("/orders/{order_id}/restore", "POST"),
         ("/orders/{order_id}/delete", "POST"),
         ("/api/quotes/preview", "POST"),
+        ("/api/quotes/economics-preview", "POST"),
+        ("/api/orders/{order_id}/customer-economics", "GET"),
         ("/filaments", "GET"),
         ("/filaments", "POST"),
         ("/filaments/{filament_id}/archive", "POST"),
