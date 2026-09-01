@@ -4,12 +4,13 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 
 ## Current development version
 
-`0.6.0-dev.1`
+`0.7.0-dev.1`
 
 ### Implemented
 
 - responsive web UI for desktop and phone;
 - SQLite persistence in a configurable data directory;
+- explicit database migration tracking with automatic pre-migration SQLite safety backups for future schema changes;
 - local filament price database using actual retail purchase prices;
 - **pre-print quote preview** from Bambu Studio time and material grams without saving the order;
 - import sliced Bambu Studio `.3mf` and read plate time + per-filament `used_g` directly from `Metadata/slice_info.config`;
@@ -24,14 +25,14 @@ Self-hosted calculator and order ledger for custom 3D-printing services. The pro
 - warning when quoted grams exceed the Spoolman remaining weight snapshot;
 - Home Assistant **GET-only** post-print energy statistics from cumulative energy or power-history sensors;
 - Home Assistant token kept outside SQLite/JSON backups in `HOME_ASSISTANT_TOKEN`;
-- umbrelOS Community App package skeleton;
 - business statistics page with 90-day load/payback forecast;
 - CSV order export and full JSON backup export;
 - validated JSON backup restore with dry-run preview, exact-file fingerprint, explicit confirmation and automatic pre-restore safety backup;
+- expanded pricing regression tests for tax, OLX fees/cap, risk multipliers and adaptive payback fairness;
 - CI tests on pull requests;
 - multi-architecture GHCR image build for `amd64` and `arm64` after tests pass.
 
-### Deliberately not implemented
+### External-system boundary
 
 - **No Spoolman writes or material deductions.** Spoolman/Bambuddy continue to manage inventory independently.
 - **No Bambuddy integration for quote calculation.** Quotes are calculated before printing from Bambu Studio data.
@@ -48,9 +49,11 @@ Open `http://localhost:8585`.
 
 Persistent state is stored in the named Docker volume `app-data`.
 
+At container start, `python -m app.migrations` validates/upgrades the local schema before Uvicorn starts. See `docs/MIGRATIONS.md`.
+
 ## umbrelOS packaging
 
-This repository is also structured as a small Community App Store:
+This repository is structured as a small Community App Store:
 
 - `umbrel-app-store.yml`
 - `mikefox-3d-print-cost/umbrel-app.yml`
@@ -81,17 +84,9 @@ Restore never contacts the printer, Bambu Cloud, Bambuddy, Spoolman or Home Assi
 
 ## Pricing principles
 
-The customer quote is calculated before print from:
+The customer quote is calculated before print from material, electricity, maintenance, manual work, packaging, expected reprint risk, tax/platform fees, selected margin and a bounded adaptive equipment-payback contribution.
 
-1. actual material cost (grams × snapshotted price per gram);
-2. electricity estimate or explicit kWh;
-3. maintenance reserve;
-4. minimal manual-labor allowance;
-5. packaging;
-6. complexity/risk reserve;
-7. tax and platform fees;
-8. selected margin;
-9. a bounded adaptive payback contribution.
+Taxes, percentage commissions and margin are solved from the **selling price**, not added as simple markups. OLX fixed/percentage fees and the configured fee cap are solved explicitly. Risk uses the expected-success-cost multiplier `1 / (1 - p)`.
 
 The payback rate is deliberately capped so a low number of monthly orders does not force a random customer to finance printer idle time. The monthly rate is snapshotted, and completed-order income affects the amount actually credited toward equipment recovery.
 
@@ -119,6 +114,7 @@ The result is displayed on the completed order as post-print statistics, includi
 
 ```bash
 pip install -r requirements.txt pytest
+python -m app.migrations
 pytest -q
 ```
 
