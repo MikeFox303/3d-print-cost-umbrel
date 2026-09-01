@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "mikefox-3d-print-cost"
-EXPECTED_IMAGE_DIGEST = "sha256:06304d09ffe55b52fa74e58431fd90d29a31e42723a27f8a1e97d76d95353c7f"
+EXPECTED_IMAGE_DIGEST = "sha256:32ad05edf930103b69c458af43528bd3f44c4ed3f01c9a97aaacad2f4ad9bd62"
 
 
 def read(path: Path) -> str:
@@ -35,7 +35,7 @@ def test_umbrel_compose_uses_current_legacy_compose_contract():
 def test_umbrel_manifest_is_browser_first_community_package():
     manifest = read(PACKAGE / "umbrel-app.yml")
     assert "manifestVersion: 1" in manifest
-    assert 'version: "0.8.0-dev.1"' in manifest
+    assert 'version: "0.9.0-dev.1"' in manifest
     assert "port: 8585" in manifest
     assert 'path: ""' in manifest
     assert "gallery: []" in manifest
@@ -44,7 +44,7 @@ def test_umbrel_manifest_is_browser_first_community_package():
 
 def test_umbrel_runtime_image_is_versioned_and_digest_pinned():
     compose = read(PACKAGE / "docker-compose.yml")
-    expected = f"ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1@{EXPECTED_IMAGE_DIGEST}"
+    expected = f"ghcr.io/mikefox303/3d-print-cost-umbrel:0.9.0-dev.1@{EXPECTED_IMAGE_DIGEST}"
     assert expected in compose
     assert re.search(r"@sha256:[0-9a-f]{64}\b", compose)
     assert ":latest" not in compose

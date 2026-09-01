@@ -80,13 +80,13 @@ The repository contains a Community App Store package:
 - `mikefox-3d-print-cost/umbrel-app.yml`
 - `mikefox-3d-print-cost/docker-compose.yml`
 
-The currently installable pinned Umbrel package remains `0.8.0-dev.1` until the `0.9.0-dev.1` runtime image is published and its immutable multi-arch digest is known:
+The `0.9.0-dev.1` runtime image was published for both amd64 and arm64 and the Community App package is pinned to its immutable multi-architecture digest:
 
 ```text
-ghcr.io/mikefox303/3d-print-cost-umbrel:0.8.0-dev.1@sha256:06304d09ffe55b52fa74e58431fd90d29a31e42723a27f8a1e97d76d95353c7f
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.9.0-dev.1@sha256:32ad05edf930103b69c458af43528bd3f44c4ed3f01c9a97aaacad2f4ad9bd62
 ```
 
-The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. See [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the remaining device verification checklist.
+The package is structurally checked in CI, but **real installation on an actual umbrelOS/Raspberry Pi is not claimed yet**. See [`docs/UMBREL_READINESS.md`](docs/UMBREL_READINESS.md) for the remaining device verification checklist. The new System Check page is intended to be the first check immediately after opening the app on the real device.
 
 ## Pricing principles
 
