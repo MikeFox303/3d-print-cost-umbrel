@@ -15,6 +15,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# The app-version image tag is intentionally mutable during development. Keep
+# only one workflow active for each event/ref so a superseded main run cannot
+# finish later and overwrite that tag with an older commit.
+concurrency:
+  group: container-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
@@ -42,6 +49,18 @@ jobs:
         id: version
         shell: bash
         run: echo "version=$(python -c 'from app import __version__; print(__version__)')" >> "$GITHUB_OUTPUT"
+      - name: Refuse stale main publication
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          git fetch --no-tags origin main --depth=1
+          latest_main="$(git rev-parse origin/main)"
+          echo "workflow_sha=$GITHUB_SHA"
+          echo "latest_main=$latest_main"
+          if [ "$GITHUB_SHA" != "$latest_main" ]; then
+            echo "Refusing to publish a stale main run."
+            exit 1
+          fi
       - uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:
