@@ -41,6 +41,8 @@ def test_candidate_is_exactly_versioned_and_digest_pinned():
 def test_snapshot_uses_sqlite_online_backup_and_copies_non_database_files(tmp_path):
     live, connection = make_live_data(tmp_path)
     try:
+        # Keep a real WAL-mode source open while the online backup runs.
+        assert (live / f"{shadow.DATABASE_NAME}-wal").exists()
         snapshot = shadow.create_snapshot(live, tmp_path / "snapshots")
 
         with sqlite3.connect(snapshot / shadow.DATABASE_NAME) as copied:
@@ -50,8 +52,6 @@ def test_snapshot_uses_sqlite_online_backup_and_copies_non_database_files(tmp_pa
 
         assert (snapshot / "home-assistant-token").read_text(encoding="utf-8") == "secret-copy-only"
         assert (snapshot / "nested" / "note.txt").read_text(encoding="utf-8") == "keep me"
-        assert not (snapshot / f"{shadow.DATABASE_NAME}-wal").exists()
-        assert not (snapshot / f"{shadow.DATABASE_NAME}-shm").exists()
 
         marker = json.loads((snapshot / shadow.MARKER_NAME).read_text(encoding="utf-8"))
         assert marker["schema"] == "3d-print-cost-v014-shadow-v1"
@@ -62,6 +62,24 @@ def test_snapshot_uses_sqlite_online_backup_and_copies_non_database_files(tmp_pa
         assert connection.execute("SELECT COUNT(*) FROM orders").fetchone() == (1,)
     finally:
         connection.close()
+
+
+def test_ordinary_copy_explicitly_excludes_source_db_wal_and_shm(tmp_path):
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    destination.mkdir()
+    (source / shadow.DATABASE_NAME).write_bytes(b"database-sentinel")
+    (source / f"{shadow.DATABASE_NAME}-wal").write_bytes(b"source-wal-sentinel")
+    (source / f"{shadow.DATABASE_NAME}-shm").write_bytes(b"source-shm-sentinel")
+    (source / "keep.txt").write_text("keep", encoding="utf-8")
+
+    shadow._copy_non_database_files(source, destination)
+
+    assert (destination / "keep.txt").read_text(encoding="utf-8") == "keep"
+    assert not (destination / shadow.DATABASE_NAME).exists()
+    assert not (destination / f"{shadow.DATABASE_NAME}-wal").exists()
+    assert not (destination / f"{shadow.DATABASE_NAME}-shm").exists()
 
 
 def test_snapshot_root_must_not_be_inside_live_data(tmp_path):
