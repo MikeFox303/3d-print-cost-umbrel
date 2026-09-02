@@ -56,18 +56,20 @@ Keep port `18585` LAN/VPN-only. Do not forward it from the router to the public 
 
 The repository also includes a Python-standard-library-only checker. It performs GET requests against 3D Print Cost itself and never writes orders, SQLite, Spoolman, Home Assistant or Bambuddy.
 
-Point it at the **shadow URL** printed in step 0.
+Point it at the **shadow URL** printed in step 0. Save the machine-readable JSON report so the exact server-side result can be kept with the physical validation notes.
 
 Windows PowerShell:
 
 ```powershell
-py tools\validate_v014_host.py http://RASPBERRY-PI-IP:18585
+py tools\validate_v014_host.py http://RASPBERRY-PI-IP:18585 `
+  --json-out v014-host-preflight.json
 ```
 
 Linux/macOS:
 
 ```bash
-python3 tools/validate_v014_host.py http://RASPBERRY-PI-IP:18585
+python3 tools/validate_v014_host.py http://RASPBERRY-PI-IP:18585 \
+  --json-out v014-host-preflight.json
 ```
 
 A successful run verifies:
@@ -78,7 +80,17 @@ A successful run verifies:
 - the shared page shell links the manifest and connectivity helper;
 - Dashboard, New Order, Materials, Statistics and System Check return HTTP 200.
 
-Do not continue to phone-specific validation if this preflight fails.
+The optional JSON report is versioned as `3d-print-cost-v014-host-preflight-v1` and records:
+
+- UTC generation time;
+- normalized target URL and expected version;
+- exact candidate image including immutable digest;
+- one pass/fail entry for every server-side check;
+- overall `pass` or `fail` result.
+
+The report deliberately excludes HTTP response bodies and headers, cookies, tokens and credentials. Base URLs with embedded `user:password@host` credentials are rejected. A report is still written when an individual server-side check fails, which makes failed physical runs diagnosable without copying raw application responses.
+
+Do not continue to phone-specific validation if this preflight fails. Preserve the JSON report for both passed and failed validation attempts.
 
 ## 2. Snapshot data and System Check
 
@@ -148,6 +160,6 @@ Stop the shadow container first:
 python3 tools/v014_shadow_validation.py stop
 ```
 
-Preserve its snapshot until any failed checks have been diagnosed. Delete it only with the marker-validated `cleanup` command when it is no longer useful.
+Preserve its snapshot and `v014-host-preflight.json` until any failed checks have been diagnosed and the physical iPhone results are recorded. Delete the snapshot only with the marker-validated `cleanup` command when it is no longer useful.
 
 Only after the physical v0.14 checks pass should the Umbrel Community App package be promoted from the validated v0.13 image to the tested v0.14 immutable digest.
