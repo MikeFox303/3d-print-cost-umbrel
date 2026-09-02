@@ -62,6 +62,18 @@ def validate_port(port: int) -> int:
     return int(port)
 
 
+def ensure_port_available(port: int) -> int:
+    port = validate_port(port)
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        probe.bind(("0.0.0.0", port))
+    except OSError as exc:
+        raise ShadowError(f"port {port} is not available on the host: {exc}") from exc
+    finally:
+        probe.close()
+    return port
+
+
 def validate_snapshot_root(live_data_dir: Path, snapshot_root: Path) -> Path:
     live_data_dir = live_data_dir.resolve()
     snapshot_root = snapshot_root.expanduser().resolve()
@@ -179,12 +191,17 @@ def _container_exists() -> bool:
         result = subprocess.run(
             ["docker", "inspect", CONTAINER_NAME],
             text=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            capture_output=True,
         )
     except FileNotFoundError as exc:
         raise ShadowError("required command not found: docker") from exc
-    return result.returncode == 0
+    if result.returncode == 0:
+        return True
+    detail = f"{result.stdout or ''}\n{result.stderr or ''}".strip()
+    lowered = detail.lower()
+    if "no such object" in lowered or "no such container" in lowered:
+        return False
+    raise ShadowError(f"cannot inspect Docker state safely{': ' + detail if detail else ''}")
 
 
 def _wait_for_health(port: int, timeout: float = 45.0) -> dict:
@@ -234,7 +251,7 @@ def _docker_args_include_live_path(args: list[str], live_data_dir: Path) -> bool
 
 def start(live_data_dir: Path, snapshot_root: Path, port: int) -> Path:
     require_pinned_image()
-    validate_port(port)
+    port = ensure_port_available(port)
     if os.name != "posix":
         raise ShadowError("shadow launcher is intended for the Linux Umbrel host")
     if hasattr(os, "geteuid") and os.geteuid() != 1000:
