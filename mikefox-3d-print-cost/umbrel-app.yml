@@ -2,7 +2,7 @@ manifestVersion: 1
 id: mikefox-3d-print-cost
 category: Development
 name: 3D Print Cost
-version: "0.13.0-dev.1"
+version: "0.14.0-dev.1"
 tagline: Fair pre-print quotes and order economics for 3D printing
 description: >-
   A local, browser-first calculator and order ledger for custom 3D-printing services, designed around Bambu Lab X2D workflows.
@@ -13,7 +13,7 @@ description: >-
 
   Spoolman and Home Assistant integrations are read-only. Spoolman/Bambuddy remain responsible for their own filament accounting. Home Assistant is used only for post-print energy statistics and never changes the saved customer quote.
 releaseNotes: >-
-  v0.13 expands the real-order workflow without changing the core minimum/recommended pricing formulas. Sliced Bambu Studio .3mf imports can conservatively match materials to the local filament price database while ambiguous choices stay manual. The app now evaluates economics at the actual customer price, stores that result in the immutable order snapshot, and provides a client-safe copyable quote that never exposes internal costs or margin. Completed orders can compare quote-time electricity with read-only Home Assistant measurements using the historical tariff saved with the quote; this reconciliation is statistics only and never reprices an order. Statistics also gains snapshot-only price-discipline analytics so real completed v0.13 orders can later guide pricing calibration without reconstructing legacy orders from current settings. Spoolman/Home Assistant remain read-only, SQLite persistence remains in the existing /data volume, and no schema migration is required for this update.
+  v0.14 adds a safe iPhone/Home Screen standalone shell without turning the app into an offline business-data client. The package now includes a standards-based web app manifest, touch icons and iOS safe-area handling for notch/Dynamic Island and Home-indicator spacing. A same-origin /healthz heartbeat distinguishes a truly offline phone from an unavailable Umbrel/LAN/VPN/Tailscale path and automatically clears the warning after connectivity returns. Dynamic business responses remain no-store, there is no service worker or offline quote/order cache, and Umbrel/SQLite remains the authoritative source. Pricing formulas, persistent /data, and database schema are unchanged; no schema migration is required for this update. Spoolman and Home Assistant remain read-only, and Bambuddy remains outside the quote/calculation workflow.
 developer: MikeFox303
 website: https://github.com/MikeFox303/3d-print-cost-umbrel
 dependencies: []

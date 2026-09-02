@@ -49,9 +49,11 @@ def test_umbrel_package_uses_immutable_digest_and_persistent_data_mount():
     assert "DATA_DIR: /data" in compose_text
 
 
-def test_v013_release_notes_keep_external_integrations_read_only():
+def test_v014_release_notes_preserve_authoritative_server_and_read_only_integrations():
     manifest_text = MANIFEST.read_text()
 
-    assert "Spoolman/Home Assistant remain read-only" in manifest_text
-    assert "never reprices an order" in manifest_text
+    assert "there is no service worker or offline quote/order cache" in manifest_text
+    assert "Umbrel/SQLite remains the authoritative source" in manifest_text
     assert "no schema migration is required" in manifest_text
+    assert "Spoolman and Home Assistant remain read-only" in manifest_text
+    assert "Bambuddy remains outside the quote/calculation workflow" in manifest_text
