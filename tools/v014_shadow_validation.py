@@ -23,8 +23,9 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+EXPECTED_VERSION = "0.14.0-dev.1"
 IMAGE = (
-    "ghcr.io/mikefox303/3d-print-cost-umbrel:0.14.0-dev.1"
+    f"ghcr.io/mikefox303/3d-print-cost-umbrel:{EXPECTED_VERSION}"
     "@sha256:ca7e5d0bc440b70d2f3d01869a7aa7bae96cf5290bdf4fd70391dd5a4b9b79c0"
 )
 CONTAINER_NAME = "3d-print-cost-v014-shadow"
@@ -61,22 +62,30 @@ def validate_port(port: int) -> int:
     return int(port)
 
 
+def validate_snapshot_root(live_data_dir: Path, snapshot_root: Path) -> Path:
+    live_data_dir = live_data_dir.resolve()
+    snapshot_root = snapshot_root.expanduser().resolve()
+    if snapshot_root == live_data_dir or live_data_dir in snapshot_root.parents:
+        raise ShadowError("snapshot root must be outside the live data directory")
+    return snapshot_root
+
+
 def _copy_non_database_files(source: Path, destination: Path) -> None:
     excluded = {DATABASE_NAME, f"{DATABASE_NAME}-wal", f"{DATABASE_NAME}-shm"}
     for item in source.iterdir():
         if item.name in excluded:
             continue
         target = destination / item.name
-        if item.is_dir():
-            shutil.copytree(item, target, symlinks=True)
-        elif item.is_symlink():
+        if item.is_symlink():
             target.symlink_to(os.readlink(item))
+        elif item.is_dir():
+            shutil.copytree(item, target, symlinks=True)
         else:
             shutil.copy2(item, target)
 
 
 def _backup_sqlite(source_db: Path, destination_db: Path) -> None:
-    source_uri = f"file:{source_db.as_posix()}?mode=ro"
+    source_uri = source_db.resolve().as_uri() + "?mode=ro"
     try:
         with sqlite3.connect(source_uri, uri=True, timeout=10.0) as source:
             with sqlite3.connect(destination_db) as destination:
@@ -90,7 +99,7 @@ def _backup_sqlite(source_db: Path, destination_db: Path) -> None:
 
 def create_snapshot(live_data_dir: Path, snapshot_root: Path) -> Path:
     live_data_dir = validate_live_data_dir(live_data_dir)
-    snapshot_root = snapshot_root.expanduser().resolve()
+    snapshot_root = validate_snapshot_root(live_data_dir, snapshot_root)
     snapshot_root.mkdir(parents=True, exist_ok=True)
 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -166,12 +175,15 @@ def _run(command: list[str], *, capture: bool = True) -> subprocess.CompletedPro
 
 
 def _container_exists() -> bool:
-    result = subprocess.run(
-        ["docker", "inspect", CONTAINER_NAME],
-        text=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", CONTAINER_NAME],
+            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except FileNotFoundError as exc:
+        raise ShadowError("required command not found: docker") from exc
     return result.returncode == 0
 
 
@@ -184,8 +196,15 @@ def _wait_for_health(port: int, timeout: float = 45.0) -> dict:
             with urlopen(url, timeout=2.0) as response:
                 payload = json.loads(response.read().decode("utf-8"))
                 if response.status == 200 and payload.get("status") == "ok":
+                    version = str(payload.get("version") or "")
+                    if version != EXPECTED_VERSION:
+                        raise ShadowError(
+                            f"shadow health endpoint reports {version!r}, expected {EXPECTED_VERSION!r}"
+                        )
                     return payload
                 last_error = f"HTTP {response.status}: {payload}"
+        except ShadowError:
+            raise
         except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
             last_error = str(exc)
         time.sleep(1.0)
@@ -208,6 +227,11 @@ def _lan_addresses() -> list[str]:
     return addresses
 
 
+def _docker_args_include_live_path(args: list[str], live_data_dir: Path) -> bool:
+    live = str(live_data_dir.resolve())
+    return any(arg == live or arg.startswith(f"{live}:") for arg in args)
+
+
 def start(live_data_dir: Path, snapshot_root: Path, port: int) -> Path:
     require_pinned_image()
     validate_port(port)
@@ -224,14 +248,14 @@ def start(live_data_dir: Path, snapshot_root: Path, port: int) -> Path:
         )
 
     live_data_dir = validate_live_data_dir(live_data_dir)
+    snapshot_root = validate_snapshot_root(live_data_dir, snapshot_root)
     snapshot = create_snapshot(live_data_dir, snapshot_root)
     print(f"Snapshot created: {snapshot}")
     print("Pulling immutable v0.14 candidate...")
     try:
         _run(["docker", "pull", IMAGE], capture=False)
         args = build_docker_run_args(snapshot, port)
-        # Safety assertion: the live source path must never appear in the Docker command.
-        if str(live_data_dir) in " ".join(args):
+        if _docker_args_include_live_path(args, live_data_dir):
             raise ShadowError("internal safety check failed: live data path reached Docker args")
         _run(args)
         payload = _wait_for_health(port)
@@ -254,6 +278,7 @@ def start(live_data_dir: Path, snapshot_root: Path, port: int) -> Path:
     else:
         print(f"iPhone/LAN URL: http://<RASPBERRY-PI-IP>:{port}")
     print("Live v0.13 data was not mounted. The shadow is using only the snapshot above.")
+    print("Keep this port LAN/VPN-only; do not forward it from the router to the public internet.")
     return snapshot
 
 
@@ -282,6 +307,8 @@ def stop() -> None:
 
 
 def cleanup(snapshot_raw: str | Path) -> None:
+    if _container_exists():
+        raise ShadowError("refusing cleanup while the shadow container exists; run stop first")
     snapshot = Path(snapshot_raw).expanduser().resolve()
     marker_path = snapshot / MARKER_NAME
     if not snapshot.is_dir() or not marker_path.is_file():
