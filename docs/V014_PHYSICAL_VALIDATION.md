@@ -1,32 +1,78 @@
 # v0.14 physical Umbrel + iPhone validation
 
-Use this checklist only after the intended v0.14 runtime has been installed on the physical Umbrel host **without deleting the existing app data**.
+The preferred v0.14 validation path keeps the physically validated v0.13 Community App running unchanged. A separate **shadow container** uses the immutable v0.14 candidate and a copied data snapshot on another LAN port.
+
+Candidate image:
+
+```text
+ghcr.io/mikefox303/3d-print-cost-umbrel:0.14.0-dev.1@sha256:ca7e5d0bc440b70d2f3d01869a7aa7bae96cf5290bdf4fd70391dd5a4b9b79c0
+```
+
+## 0. Start the isolated v0.14 shadow on the Raspberry Pi
+
+Run the helper as the normal Umbrel user (UID 1000), **not with `sudo`**. Supply the real installed app data directory that contains `3d-cost.db`.
+
+```bash
+python3 tools/v014_shadow_validation.py start \
+  --data-dir /ABSOLUTE/PATH/TO/mikefox-3d-print-cost/data
+```
+
+Default validation port: `18585`.
+
+The helper deliberately does all of the following before v0.14 starts:
+
+- requires an explicit live data path and verifies `3d-cost.db` exists;
+- creates a separate snapshot under `/tmp` by default;
+- copies SQLite through Python's online `sqlite3.backup()` API and runs `PRAGMA integrity_check`;
+- excludes the source DB's WAL/SHM files from ordinary file copying;
+- copies the other persistent files into the snapshot;
+- refuses a snapshot root inside the live `/data` directory;
+- pulls the exact digest-pinned v0.14 image above;
+- launches a new container named `3d-print-cost-v014-shadow` as UID/GID `1000:1000`;
+- mounts **only the snapshot** at `/data:rw`;
+- verifies the shadow `/healthz` reports exactly `0.14.0-dev.1`;
+- prints one or more `http://<PI-IP>:18585` candidates for iPhone testing.
+
+The installed v0.13 container is not stopped, restarted or edited. Its compose file is not changed, and its live `/data` directory is never mounted into the validation container.
+
+Useful commands:
+
+```bash
+python3 tools/v014_shadow_validation.py status
+python3 tools/v014_shadow_validation.py stop
+```
+
+`stop` removes only the shadow container and leaves its snapshot intact. When validation is completely finished, delete the exact marked snapshot path printed by the tool:
+
+```bash
+python3 tools/v014_shadow_validation.py cleanup /tmp/3d-print-cost-v014-YYYYMMDDTHHMMSSZ
+```
+
+Cleanup is fail-closed: it refuses unmarked/tampered directories and refuses to delete a snapshot while the shadow container still exists.
+
+Keep port `18585` LAN/VPN-only. Do not forward it from the router to the public internet.
 
 ## 1. Server-side preflight from a computer
 
-The repository includes a Python-standard-library-only checker. It performs GET requests against 3D Print Cost itself and never writes orders, SQLite, Spoolman, Home Assistant or Bambuddy.
+The repository also includes a Python-standard-library-only checker. It performs GET requests against 3D Print Cost itself and never writes orders, SQLite, Spoolman, Home Assistant or Bambuddy.
+
+Point it at the **shadow URL** printed in step 0.
 
 Windows PowerShell:
 
 ```powershell
-py tools\validate_v014_host.py http://YOUR-3D-PRINT-COST-URL
+py tools\validate_v014_host.py http://RASPBERRY-PI-IP:18585
 ```
 
 Linux/macOS:
 
 ```bash
-python3 tools/validate_v014_host.py http://YOUR-3D-PRINT-COST-URL
-```
-
-For a different build, override the expected version:
-
-```bash
-python3 tools/validate_v014_host.py http://YOUR-3D-PRINT-COST-URL --expected-version 0.14.0-dev.1
+python3 tools/validate_v014_host.py http://RASPBERRY-PI-IP:18585
 ```
 
 A successful run verifies:
 
-- `/healthz` reports `status=ok` and the expected app version;
+- `/healthz` reports `status=ok` and version `0.14.0-dev.1`;
 - dynamic responses carry `Cache-Control: no-store` and `Pragma: no-cache`;
 - the web manifest is installable/standalone with root scope and 192/512 icons;
 - the shared page shell links the manifest and connectivity helper;
@@ -34,19 +80,21 @@ A successful run verifies:
 
 Do not continue to phone-specific validation if this preflight fails.
 
-## 2. Existing-data and System Check
+## 2. Snapshot data and System Check
 
-On the physical Umbrel install confirm:
+On the **shadow v0.14** confirm:
 
-- previous settings and orders are still present;
-- System Check reports the expected v0.14 version;
+- the expected previous settings and orders are present from the snapshot;
+- System Check reports `0.14.0-dev.1`;
 - architecture is `aarch64`;
-- persistent `/data` is writable;
+- shadow `/data` is writable;
 - SQLite and migrations are OK.
+
+Changes made during this validation belong only to the copied shadow snapshot. They are not expected to appear in the still-running v0.13 Community App.
 
 ## 3. iPhone Home Screen shell
 
-In Safari open the normal local 3D Print Cost URL and use **Share → Add to Home Screen**.
+In Safari open the shadow URL and use **Share → Add to Home Screen**.
 
 Confirm:
 
@@ -58,7 +106,7 @@ Confirm:
 
 ## 4. Connectivity states
 
-Keep the app open on iPhone.
+Keep the shadow app open on iPhone.
 
 ### Device truly offline
 
@@ -68,19 +116,19 @@ Expected result: the global banner shows **`Телефон офлайн.`** imme
 
 ### Phone online but Umbrel path unavailable
 
-Restore internet/cellular connectivity but make the local/VPN/Tailscale path to Umbrel unavailable.
+Restore internet/cellular connectivity but make the LAN/VPN/Tailscale path to the Raspberry Pi unavailable while the phone itself remains online.
 
 Expected result: after the health probe fails, the banner shows **`Umbrel недоступен.`** rather than pretending the app is usable.
 
 ### Recovery
 
-Restore the working local/VPN path and return the app to the foreground.
+Restore the working LAN/VPN path and return the app to the foreground.
 
 Expected result: an immediate `/healthz` probe succeeds and the warning disappears without reloading the page.
 
-## 5. Real-order regression
+## 5. Real-order regression on the snapshot
 
-After the shell/connectivity tests pass, verify the existing v0.13 business workflow still works unchanged:
+After the shell/connectivity tests pass, verify the existing v0.13 business workflow still works unchanged inside the shadow copy:
 
 - import a sliced Bambu Studio `.3mf`;
 - confirm conservative local filament auto-match/ambiguity behavior;
@@ -90,4 +138,16 @@ After the shell/connectivity tests pass, verify the existing v0.13 business work
 - confirm Spoolman stays read-only;
 - complete a test order and inspect Home Assistant electricity reconciliation without mutating historical quote fields.
 
-Only after these physical checks pass should the Umbrel Community App package be bumped and pinned to the tested v0.14 immutable digest.
+These test writes affect the shadow snapshot only. The live v0.13 order ledger remains the comparison/control copy.
+
+## 6. Finish and promote only after results are known
+
+Stop the shadow container first:
+
+```bash
+python3 tools/v014_shadow_validation.py stop
+```
+
+Preserve its snapshot until any failed checks have been diagnosed. Delete it only with the marker-validated `cleanup` command when it is no longer useful.
+
+Only after the physical v0.14 checks pass should the Umbrel Community App package be promoted from the validated v0.13 image to the tested v0.14 immutable digest.
