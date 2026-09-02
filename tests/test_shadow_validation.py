@@ -1,5 +1,7 @@
 import json
+import socket
 import sqlite3
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -131,9 +133,46 @@ def test_cleanup_rejects_tampered_marker(tmp_path, monkeypatch):
     assert snapshot.exists()
 
 
-def test_port_validation_is_unprivileged_and_bounded():
+def test_port_validation_is_unprivileged_bounded_and_checks_availability():
     assert shadow.validate_port(18585) == 18585
     with pytest.raises(shadow.ShadowError):
         shadow.validate_port(80)
     with pytest.raises(shadow.ShadowError):
         shadow.validate_port(70000)
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        listener.bind(("0.0.0.0", 0))
+        listener.listen(1)
+        occupied = listener.getsockname()[1]
+        with pytest.raises(shadow.ShadowError, match="not available"):
+            shadow.ensure_port_available(occupied)
+    finally:
+        listener.close()
+
+    assert shadow.ensure_port_available(occupied) == occupied
+
+
+def test_docker_inspect_distinguishes_missing_container_from_unsafe_errors(monkeypatch):
+    def no_such_object(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args[0],
+            1,
+            stdout="",
+            stderr=f"Error: No such object: {shadow.CONTAINER_NAME}",
+        )
+
+    monkeypatch.setattr(shadow.subprocess, "run", no_such_object)
+    assert shadow._container_exists() is False
+
+    def permission_denied(*args, **kwargs):
+        return subprocess.CompletedProcess(
+            args[0],
+            1,
+            stdout="",
+            stderr="permission denied while trying to connect to the Docker daemon socket",
+        )
+
+    monkeypatch.setattr(shadow.subprocess, "run", permission_denied)
+    with pytest.raises(shadow.ShadowError, match="cannot inspect Docker state safely"):
+        shadow._container_exists()
